@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>شهادة التعليم المتوسط · متوسطة الشهيد بلعكرمي أعمر</title>
+<meta name="description" content="مواضيع شهادة التعليم المتوسط BEM وتصحيحاتها، ينشرها أساتذة متوسطة الشهيد بلعكرمي أعمر.">
+<meta name="theme-color" content="#24272C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/app-touch-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@600;700&display=swap">
+<link rel="stylesheet" href="style.css?v=5">
+<script src="config.js"></script>
+<script src="common.js?v=4"></script>
+<style>
+  .intro{display:flex;gap:14px;align-items:flex-start}
+  .intro .bem-badge{font-size:1.3rem;padding:10px 12px}
+  .intro p{margin:0;color:var(--muted)}
+  .session{display:flex;flex-direction:column;gap:10px}
+  .session h3{font-size:1.05rem;color:var(--brick-ink);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .steps-mini{margin:0;padding-inline-start:20px;color:var(--muted);font-size:.92rem}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="in">
+    <a class="home" href="./#y4">→ الدروس</a>
+    <div class="ttl"><h1>شهادة التعليم المتوسط</h1><small id="school"></small></div>
+  </div>
+  <div class="strip" aria-hidden="true"></div>
+</header>
+<main>
+  <section class="card intro">
+    <span class="bem-badge" aria-hidden="true">BEM</span>
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <p><b style="color:var(--ink)">مواضيع الدورات السابقة وتصحيحاتها</b>، لتلاميذ الرابعة متوسط، ينشرها أساتذة المؤسسة.</p>
+      <ol class="steps-mini"><li>حلّ الموضوع وحدك في الوقت المحدد.</li><li>ثم قارن إجابتك بالتصحيح.</li></ol>
+    </div>
+  </section>
+  <div id="error"></div>
+  <section id="view"><div class="skeleton"></div><div class="skeleton" style="margin-top:10px"></div></section>
+</main>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)},esc=D.esc,subj=D.subj;
+$("school").textContent=SITE.name;
+var all=[],pick="",loaded=false;
+
+function sessionKey(u){var n=D.unitKey(u);return n===9999?0:n}
+function render(){var v=$("view");
+ if(!loaded){return}
+ if(!all.length){v.innerHTML='<div class="empty">لم تُنشر مواضيع بعد.<br>أساتذة الرابعة متوسط ينشرونها من «فضاء الأساتذة» باختيار النوع «موضوع BEM» أو «تصحيح BEM».</div>';return}
+ var subs=D.SUBJ.filter(function(s){return all.some(function(l){return l.subject===s.k})});
+ if(pick&&!subs.some(function(s){return s.k===pick}))pick="";
+ var o='<div class="chips" role="group" aria-label="المادة"><button class="chip" data-s="" aria-pressed="'+(!pick)+'">كل المواد <small>'+all.length+'</small></button>'
+  +subs.map(function(s){var c=all.filter(function(l){return l.subject===s.k}).length;return'<button class="chip" data-s="'+s.k+'" aria-pressed="'+(pick===s.k)+'">'+s.n+' <small>'+c+'</small></button>'}).join("")+'</div>';
+ var list=pick?all.filter(function(l){return l.subject===pick}):all;
+ /* حسب الدورة: الأحدث أولًا */
+ var sessions=[];list.forEach(function(l){var k=l.unit||"";if(sessions.indexOf(k)<0)sessions.push(k)});
+ sessions.sort(function(a,b){return sessionKey(b)-sessionKey(a)||a.localeCompare(b,"ar")});
+ o+='<div style="display:flex;flex-direction:column;gap:18px">'+sessions.map(function(k){
+  var L=list.filter(function(l){return(l.unit||"")===k}).sort(function(a,b){return(a.subject>b.subject?1:a.subject<b.subject?-1:0)||(a.type===b.type?0:a.type==="bem"?-1:1)});
+  return'<section class="session"><h3>'+esc(k||"دورات أخرى")+'</h3>'+L.map(card).join("")+'</section>'}).join("")+'</div>';
+ v.innerHTML=o}
+function card(l){var s=subj(l.subject),meta=[];if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(D.fmt(l.date));
+ return'<article class="lesson"><span class="where">'+esc(s?s.n:"")+'</span><div class="row"><h4>'+esc(l.title)+'</h4><span class="tags">'+(D.isNew(l.date)?'<span class="pill new">جديد</span>':'')+'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span></span></div>'
+  +(meta.length?'<div class="meta">'+meta.map(function(x){return"<span>"+x+"</span>"}).join("<span>·</span>")+'</div>':'')
+  +'<a class="open" href="lesson.html?id='+encodeURIComponent(l.id)+'">افتح</a></article>'}
+function take(L){all=(L||[]).filter(function(l){var t=D.typeOf(l);return t==="bem"||t==="bemc"}).map(function(l){l.type=D.typeOf(l);return l});loaded=true;render()}
+
+$("view").addEventListener("click",function(e){var b=e.target.closest("[data-s]");if(!b)return;pick=b.dataset.s;render()});
+D.inAppNote(document.querySelector("main"));
+var saved=D.cached();if(saved)take(saved.lessons);
+if(!D.apiOn()){take([]);return}
+D.markVisit();
+D.lessons().then(take,function(){if(!saved){take([])}
+ $("error").innerHTML='<div class="msg" role="status">'+(navigator.onLine?"الخادم مشغول الآن.":"أنت بدون إنترنت.")+(saved?" المعروض آخر نسخة محفوظة في هاتفك.":" أعد فتح الصفحة بعد قليل.")+'</div>'});
+})();
+</script>
+</body>
+</html>

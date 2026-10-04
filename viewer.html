@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>عرض الدرس · متوسطة الشهيد بلعكرمي أعمر</title>
+<meta name="theme-color" content="#24272C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/app-touch-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@600;700&display=swap">
+<link rel="stylesheet" href="style.css?v=5">
+<style>
+  body{min-height:100vh}
+  .vbar{position:sticky;top:0;z-index:5;background:var(--charcoal);color:#fff;padding-top:env(safe-area-inset-top,0px);box-shadow:0 2px 10px rgba(0,0,0,.18)}
+  .vbar .in{max-width:980px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+  .vbar .back{color:#C9CCD1;text-decoration:none;border:1px solid #3A3E45;border-radius:999px;padding:5px 12px;font-size:.88rem;white-space:nowrap;flex:none}
+  .vbar .ttl{flex:1;min-width:0;display:flex;flex-direction:column}
+  .vbar h1{font-size:1rem;color:var(--gold);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.35}
+  .vbar small{color:#A2A8B1;font-size:.78rem;font-variant-numeric:tabular-nums}
+  .vbar .get{flex:none;background:var(--gold);color:#2A1F00;font-weight:600;text-decoration:none;border-radius:10px;padding:8px 14px;white-space:nowrap}
+  .vbar .strip{height:6px;background-color:var(--brick);background-image:var(--lattice);background-size:7px 6px}
+  .stage{overflow-x:auto;padding-block:18px 90px}
+  .pages{margin:0 auto;padding-inline:12px;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:900px;transition:max-width .2s}
+  .pg{position:relative;width:100%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18),0 6px 18px rgba(0,0,0,.08);border-radius:4px;overflow:hidden}
+  .pg canvas{display:block;width:100%;height:100%}
+  .pg .n{position:absolute;bottom:6px;left:8px;font-size:.72rem;color:#8A8F96;font-variant-numeric:tabular-nums}
+  .pg.wait::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#f4f4f4,#eaeaea,#f4f4f4);background-size:200% 100%}
+  @media (prefers-reduced-motion:no-preference){.pg.wait::before{animation:sh 1.2s infinite linear}@keyframes sh{to{background-position:-200% 0}}}
+  .dock{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:5;
+    display:flex;align-items:center;gap:4px;background:var(--charcoal);color:#fff;border-radius:999px;padding:5px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  .dock button{background:none;border:0;color:#fff;width:38px;height:38px;border-radius:999px;font-size:1.15rem;cursor:pointer}
+  .dock button:hover{background:#3A3E45}
+  .dock button[disabled]{opacity:.35;cursor:default;background:none}
+  .dock span{direction:ltr;unicode-bidi:isolate;min-width:74px;text-align:center;font-size:.88rem;font-variant-numeric:tabular-nums}
+  .state{max-width:560px;margin:40px auto;padding-inline:16px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:14px;align-items:center}
+  .state .dl{color:var(--brick-ink)}
+</style>
+</head>
+<body>
+<header class="vbar">
+  <div class="in">
+    <a class="back" id="back" href="./">→ الدروس</a>
+    <div class="ttl"><h1 id="title">الدرس</h1><small id="info">جاري فتح الملف…</small></div>
+    <a class="get" id="get" href="#" download>تحميل ⤓</a>
+  </div>
+  <div class="strip" aria-hidden="true"></div>
+</header>
+
+<div class="stage" id="stage"><div class="pages" id="pages"></div></div>
+<div class="state" id="state" hidden></div>
+
+<nav class="dock" id="dock" aria-label="التحكم في العرض" hidden>
+  <button type="button" id="zout" aria-label="تصغير">−</button>
+  <span id="pnum">1 / 1</span>
+  <button type="button" id="zin" aria-label="تكبير">+</button>
+  <button type="button" id="shr" aria-label="مشاركة الدرس" title="مشاركة" style="width:auto;padding:0 12px;font-size:.88rem">مشاركة</button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function(){
+var CDN="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+var $=function(id){return document.getElementById(id)};
+var qs=new URLSearchParams(location.search);
+var file=qs.get("f")||"",title=(qs.get("t")||"").slice(0,160)||"الدرس",back=qs.get("b")||"";
+var valid=/^lessons\/[A-Za-z0-9_\/.-]+\.pdf$/i.test(file)&&file.indexOf("..")<0;
+
+$("title").textContent=title;document.title=title+" · متوسطة الشهيد بلعكرمي أعمر";
+if(/^y[1-4]-[a-z]+$/.test(back))$("back").href="./#"+back;
+var fname=title.replace(/[\\\/:*?"<>|]+/g," ").trim()+".pdf";
+
+function fail(msg){$("stage").hidden=true;$("dock").hidden=true;$("info").textContent="";
+ var s=$("state");s.hidden=false;s.innerHTML="";var p=document.createElement("p");p.textContent=msg;s.appendChild(p);
+ if(valid){var a=document.createElement("a");a.className="dl";a.href=file;a.setAttribute("download",fname);a.textContent="تحميل الملف ⤓";s.appendChild(a)}}
+
+if(!valid){$("get").hidden=true;fail("هذا الرابط لا يشير إلى درس موجود. ارجع إلى صفحة الدروس واختر الدرس من جديد.");return}
+$("get").href=file;$("get").setAttribute("download",fname);
+if(!window.pdfjsLib){fail("تعذّر تشغيل عارض الدروس. يمكنك تحميل الملف وفتحه في هاتفك.");return}
+
+pdfjsLib.GlobalWorkerOptions.workerSrc=CDN+"pdf.worker.min.js";
+var ZOOMS=[1,1.5,2],zi=0,doc=null,slots=[],DPR=Math.min(window.devicePixelRatio||1,2);
+
+pdfjsLib.getDocument({url:file,disableRange:true,disableStream:true,cMapUrl:CDN+"cmaps/",cMapPacked:true,standardFontDataUrl:CDN+"standard_fonts/"}).promise.then(function(d){
+ doc=d;var N=d.numPages;$("info").textContent=N===1?"صفحة واحدة":N===2?"صفحتان":N+(N<=10?" صفحات":" صفحة");
+ var chain=Promise.resolve(),box=$("pages");
+ for(var i=1;i<=d.numPages;i++)(function(n){chain=chain.then(function(){return d.getPage(n)}).then(function(page){
+  var vp=page.getViewport({scale:1}),el=document.createElement("div");el.className="pg wait";el.style.aspectRatio=vp.width+" / "+vp.height;el.dataset.n=n;
+  var lab=document.createElement("span");lab.className="n";lab.textContent=n;el.appendChild(lab);box.appendChild(el);
+  slots.push({n:n,page:page,el:el,w:0,busy:false,visible:false});io.observe(el)})})(i);
+ return chain.then(function(){$("dock").hidden=false;$("pnum").textContent="1 / "+d.numPages;updateZoom()});
+}).catch(function(){fail("تعذّر عرض الدرس على هذا الجهاز. حمّل الملف وافتحه في هاتفك.")});
+
+var io=new IntersectionObserver(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.visible=e.isIntersecting;if(s.visible)draw(s)})},{rootMargin:"600px 0px"});
+var cur=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&doc)$("pnum").textContent=e.target.dataset.n+" / "+doc.numPages})},{rootMargin:"-45% 0px -45% 0px"});
+function slot(el){for(var i=0;i<slots.length;i++)if(slots[i].el===el)return slots[i];return null}
+
+function draw(s){var cssW=s.el.clientWidth,need=Math.round(cssW*DPR);if(!need||s.busy||Math.abs(s.w-need)<8)return;
+ s.busy=true;var vp1=s.page.getViewport({scale:1}),vp=s.page.getViewport({scale:need/vp1.width});
+ var c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+ s.page.render({canvasContext:c.getContext("2d",{alpha:false}),viewport:vp}).promise.then(function(){
+  var old=s.el.querySelector("canvas");if(old)s.el.removeChild(old);s.el.insertBefore(c,s.el.firstChild);s.el.classList.remove("wait");s.w=need;
+  if(!s.observed){cur.observe(s.el);s.observed=true}
+ }).catch(function(){}).then(function(){s.busy=false;if(s.visible&&Math.abs(Math.round(s.el.clientWidth*DPR)-s.w)>=8)draw(s)})}
+
+function updateZoom(){var z=ZOOMS[zi];$("pages").style.maxWidth=z===1?"900px":Math.round(Math.max(window.innerWidth,600)*z)+"px";
+ $("pages").style.width=z===1?"100%":Math.round(window.innerWidth*z)+"px";
+ $("zout").disabled=zi===0;$("zin").disabled=zi===ZOOMS.length-1;
+ requestAnimationFrame(function(){slots.forEach(function(s){if(s.visible)draw(s)})})}
+$("shr").onclick=function(){var u=location.href,t=title;
+ if(navigator.share)navigator.share({title:t,text:t,url:u}).catch(function(){});
+ else window.open("https://wa.me/?text="+encodeURIComponent(t+"\n"+u),"_blank","noopener")};
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(function(){});
+$("zin").onclick=function(){if(zi<ZOOMS.length-1){zi++;updateZoom()}};
+$("zout").onclick=function(){if(zi>0){zi--;updateZoom()}};
+var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(updateZoom,200)});
+})();
+</script>
+</body>
+</html>
