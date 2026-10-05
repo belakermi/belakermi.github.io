@@ -64,6 +64,7 @@ function draw(l,stale){
  if(!l){fail("هذا الدرس غير موجود أو حُذف.");return}
  var s=D.subj(l.subject),y=D.YEARS[l.year-1];
  document.title=l.title+" · "+SITE.name;
+ if(!draw.t){draw.t=1;D.track("/lesson/"+l.id,l.title)}
  $("crumb").textContent=(y?y.name:"")+" · "+(s?s.n:"");
  $("back").href="./#y"+l.year+"-"+l.subject;
 

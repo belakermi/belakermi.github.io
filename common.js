@@ -140,6 +140,28 @@ var D = (function () {
     if (sent.visit && j.visit) { var v = lsGet(VD, {}); v.pending = false; lsSet(VD, v); }
   }
 
+  /* ---- إحصائيات الزوار عبر GoatCounter (يعمل بدون تحديث الخادم) ----
+     كل صفحة تُرسل إشارة صغيرة لخدمة الإحصائيات (بدون كوكيز ولا بيانات شخصية)، والدرس باسم مساره lesson/رقم الدرس.
+     الخدمة تعدّ الزائر مرة واحدة لكل صفحة في اليوم تقريبًا. هواتف الأساتذة لا تُحسب. */
+  function statsOn() { return !!(window.SITE && /^[a-z0-9-]{2,40}$/.test(String(SITE.stats || ""))); }
+  function statsUrl() { return "https://" + SITE.stats + ".goatcounter.com"; }
+  function track(path, title) {
+    if (!statsOn() || teacherDevice()) return;
+    try {
+      var img = new Image();
+      img.src = statsUrl() + "/count?p=" + encodeURIComponent(path) + "&t=" + encodeURIComponent(String(title || document.title).slice(0, 120))
+        + "&r=" + encodeURIComponent(document.referrer || "") + "&s=" + screen.width + "," + screen.height + "," + (window.devicePixelRatio || 1)
+        + "&b=0&rnd=" + Math.random().toString(36).slice(2);
+    } catch (e) {}
+  }
+  /* عدد زوار صفحة (أو "TOTAL" للموقع كله). الخدمة تحفظ الجواب حتى 4 ساعات */
+  function statsCount(path) {
+    if (!statsOn()) return Promise.resolve(null);
+    var p = path === "TOTAL" ? "TOTAL" : encodeURIComponent(path);
+    return fetch(statsUrl() + "/counter/" + p + ".json").then(function (r) { return r.json(); })
+      .then(function (j) { return parseInt(String((j && j.count) || "0").replace(/[^0-9]/g, ""), 10) || 0; }, function () { return null; });
+  }
+
   function getJson(q, tries) {
     var n = 0;
     function attempt() {
@@ -227,6 +249,6 @@ var D = (function () {
     typeName:typeName, typeOf:typeOf, unitKey:unitKey, digits:digits, fold:fold, today:today, activeNews:activeNews, waLink:waLink, share:share, siteUrl:siteUrl,
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
-    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit,
+    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
     canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS };
 })();

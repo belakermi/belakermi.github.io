@@ -76,7 +76,7 @@ $("view").addEventListener("click",function(e){var b=e.target.closest("[data-s]"
 D.inAppNote(document.querySelector("main"));
 var saved=D.cached();if(saved)take(saved.lessons);
 if(!D.apiOn()){take([]);return}
-D.markVisit();
+D.markVisit();D.track("/bem","مواضيع BEM");
 D.lessons().then(take,function(){if(!saved){take([])}
  $("error").innerHTML='<div class="msg" role="status">'+(navigator.onLine?"الخادم مشغول الآن.":"أنت بدون إنترنت.")+(saved?" المعروض آخر نسخة محفوظة في هاتفك.":" أعد فتح الصفحة بعد قليل.")+'</div>'});
 })();

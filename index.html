@@ -252,6 +252,7 @@ function fetchApi(force){return D.lessons(force).then(function(L){apiL=mapApi(L)
 render();D.inAppNote(document.querySelector("main"));
 fetch("lessons.csv?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){return fromRows(parseCSV(t))},function(){return[]})
  .then(function(L){base=L;merge();loaded=true;render()});
+D.track("/","الصفحة الرئيسية");
 if(D.apiOn()){D.markVisit();fetchApi()}
 
 /* ---- التثبيت كتطبيق ---- */

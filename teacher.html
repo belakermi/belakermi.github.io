@@ -142,7 +142,10 @@ function render(){
  if(S.tab==="new"&&!S.done)ensureForm();
  var o='<div class="who"><div>مرحبًا، <b>'+esc(S.me.name)+'</b>'+(S.me.role==="admin"&&S.me.name.indexOf("مدير")<0?'<span class="role">المدير</span>':'')+'</div><button class="btn quiet sm" data-a="logout">خروج</button></div>';
  var sv=S.me.v||1;
- if(S.me.role==="admin"&&sv<LATEST)o+='<div class="upd">الخادم على الإصدار '+sv+'. حدّث كود الخادم إلى <b>الإصدار '+LATEST+'</b> لتفعيل: '+(sv<3?'نوع المحتوى، المقطع، مواضيع BEM، الإعلانات، ':'')+(sv<4?'منع تكرار النشر عند انقطاع الإنترنت، تحمّل الزحام، النسخة الاحتياطية، زر «تحديث الموقع»، ':'')+'عدد مشاهدات الدروس وعدد زوار الموقع. <a href="setup.html">طريقة التحديث</a></div>';
+ /* مع خدمة الإحصائيات تعمل المشاهدات بدون الإصدار 5، فيكفي الإصدار 4 */
+ var need=D.statsOn()?4:LATEST,feat=[];
+ if(sv<3)feat.push("نوع المحتوى، المقطع، مواضيع BEM، الإعلانات");if(sv<4)feat.push("منع تكرار النشر عند انقطاع الإنترنت، تحمّل الزحام، النسخة الاحتياطية، زر «تحديث الموقع»");if(!D.statsOn()&&sv<5)feat.push("عدد مشاهدات الدروس وعدد زوار الموقع");
+ if(S.me.role==="admin"&&sv<need)o+='<div class="upd">الخادم على الإصدار '+sv+'. حدّث كود الخادم إلى <b>الإصدار '+LATEST+'</b> لتفعيل: '+feat.join("، ")+'. <a href="setup.html">طريقة التحديث</a></div>';
  o+='<nav class="tabs" role="tablist">'+tab("new",S.form&&S.form.id?"تعديل درس":"درس جديد")+tab("mine",S.me.role==="admin"?"كل الدروس":"دروسي")+(S.me.role==="admin"?tab("news","الإعلانات")+tab("team","الأساتذة"):"")+'</nav>';
  if(S.msg)o+='<div class="'+(S.msg.ok?"ok-msg":"msg")+'" role="status">'+esc(S.msg.t)+'</div>';
  o+='<section id="pane"></section>';
@@ -216,7 +219,7 @@ function refreshUnits(){var dl=$("units");if(!dl||!S.form||!$("lf"))return;readF
 var G={mine:0,team:0,news:0};
 function fresh(k){G[k]++;if(k==="mine")S._loading=false;else if(k==="team")S._tload=false;else NW.loading=false}
 function loadMine(){if(S._loading)return;S._loading=true;S.mineErr=null;var g=G.mine;
- D.call({action:"mine",code:S.code}).then(function(j){if(g!==G.mine)return;S._loading=false;S.mine=j.lessons;if(S.tab==="mine")renderMine();else refreshUnits()},
+ D.call({action:"mine",code:S.code}).then(function(j){if(g!==G.mine)return;S._loading=false;S.mine=j.lessons;S.viewSrc=null;if(S.tab==="mine")renderMine();else refreshUnits();statsViews(g)},
   function(e){if(g!==G.mine)return;S._loading=false;S.mineErr=D.errText(e);if(S.tab==="mine")renderMine()})}
 /* المدير: تحميل الأساتذة والإعلانات مسبقًا بعد الدخول، لتفتح التبويبات فورًا */
 function loadTeachers(){if(S._tload)return;S._tload=true;S.tErr=null;var g=G.team;
@@ -327,6 +330,14 @@ function drawMine(){var el=$("mlist");if(!el)return;var q=D.fold(S.mineQ).trim()
    +(S.confirm===l.id?'<button class="btn danger sm" data-a="delYes" data-id="'+esc(l.id)+'">تأكيد الحذف</button><button class="btn quiet sm" data-a="delNo">إلغاء</button>':'<button class="btn quiet sm" data-a="del" data-id="'+esc(l.id)+'">حذف</button>')+'</div></div>'}).join("")+'</div>'
   +(L.length>S.mineN?'<button class="btn ghost" data-a="mineMore" style="align-self:center">عرض المزيد ('+(L.length-S.mineN)+')</button>':'')}
 
+/* ---- عدد المشاهدات من خدمة الإحصائيات (عندما لا يعطيها الخادم): 6 طلبات معًا على الأكثر ---- */
+function statsViews(g){var L=S.mine||[];if(!D.statsOn()||!L.length||L.some(function(l){return typeof l.views==="number"}))return;
+ var todo=L.slice(0,150),i=0,got=0,done=0,res={};
+ function next(){if(g!==G.mine)return;if(i>=todo.length)return;var l=todo[i++];
+  D.statsCount("/lesson/"+l.id).then(function(n){res[l.id]=n;if(n!=null)got++;done++;
+   if(done===todo.length){if(g!==G.mine||!got)return;todo.forEach(function(x){x.views=res[x.id]||0});S.viewSrc="stats";if(S.tab==="mine")renderMine()}else next()})}
+ for(var k=0;k<6;k++)next()}
+
 /* ---- عدد المشاهدات (خادم الإصدار 5) ---- */
 function viewWord(n){return n===1?"مشاهدة":n===2?"مشاهدتان":n>=3&&n<=10?"مشاهدات":"مشاهدة"}
 function viewSummary(){var tot=0,top=null,by={};
@@ -337,7 +348,7 @@ function viewSummary(){var tot=0,top=null,by={};
  else o+='<div class="vtop">لا مشاهدات بعد. شارك رابط درسك مع تلاميذك من صفحة الدرس (زر واتساب).</div>';
  if(S.me.role==="admin"){var rows=Object.keys(by).map(function(k){return{t:k,n:by[k].n,c:by[k].c}}).sort(function(a,b){return b.n-a.n||b.c-a.c});
   if(rows.length>1)o+='<details class="vby"><summary>حسب الأستاذ ('+rows.length+')</summary><table>'+rows.map(function(r){return'<tr><td>'+esc(r.t)+'</td><td>'+r.c+' درس</td><td>👁 '+r.n+'</td></tr>'}).join("")+'</table></details>'}
- return o+'<small class="hint" style="color:var(--muted);font-size:.8rem">تُحسب المشاهدة مرة واحدة لكل هاتف تلميذ في اليوم، ولا تُحسب هواتف الأساتذة. الأرقام تتحدث كل بضع دقائق.</small></div>'}
+ return o+'<small class="hint" style="color:var(--muted);font-size:.8rem">'+(S.viewSrc==="stats"?'تُحسب المشاهدة مرة واحدة لكل هاتف تلميذ، ولا تُحسب هواتف الأساتذة. الأرقام من خدمة الإحصائيات وقد تتأخر حتى 4 ساعات.':'تُحسب المشاهدة مرة واحدة لكل هاتف تلميذ في اليوم، ولا تُحسب هواتف الأساتذة. الأرقام تتحدث كل بضع دقائق.')+'</small></div>'}
 
 /* ---- لوحة الإعلانات (المدير) ---- */
 var NW={list:null,edit:null,confirm:null,busy:false};
@@ -370,6 +381,9 @@ function tools(){
   o+='<div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.9rem"><span>مساحة Google Drive</span><span>'+D.size(st.used)+' من '+D.size(st.limit)+' · <bdi>'+p+'%</bdi></span></div><div class="meter"><i style="width:'+Math.max(p,2)+'%;background:'+(p>=90?"var(--danger)":p>=75?"var(--gold)":"var(--ok)")+'"></i></div>'
    +(p>=80?'<p class="hint" style="margin:6px 0 0;color:var(--danger);font-size:.85rem">المساحة تقترب من الامتلاء: شغّل الدالة cleanup من محرر الخادم، وأفرغ سلة Drive، واطلب من الأساتذة وضع الفيديوهات على YouTube.</p>':'')+'</div>'}
  if(S.visits){var vz=S.visits;o+='<div><div style="font-size:.9rem;margin-bottom:6px">زوار الموقع</div><div class="vstats"><div><b>'+vz.today+'</b><span>اليوم</span></div><div><b>'+vz.d7+'</b><span>آخر 7 أيام</span></div><div><b>'+vz.d30+'</b><span>آخر 30 يومًا</span></div></div><p class="hint" style="margin:6px 0 0;color:var(--muted);font-size:.8rem">الزائر = هاتف تلميذ فتح الموقع، يُحسب مرة واحدة في اليوم. المجموع منذ البداية: '+vz.total+'.</p></div>'}
+ else if(D.statsOn()){if(S.gcTotal===undefined){S.gcTotal=null;D.statsCount("TOTAL").then(function(n){S.gcTotal=n==null?-1:n;if(S.tab==="team")renderTeam()})}
+  o+='<div><div style="font-size:.9rem;margin-bottom:6px">زوار الموقع</div>'+(S.gcTotal>=0?'<div class="vstats" style="grid-template-columns:minmax(0,1fr)"><div><b>'+S.gcTotal+'</b><span>منذ البداية</span></div></div>':S.gcTotal===-1?'<p class="hint" style="margin:0;color:var(--danger);font-size:.85rem">خدمة الإحصائيات لم تُفعَّل بعد: أنشئ حساب GoatCounter باسم '+esc(SITE.stats)+' وفعّل خيار عدّاد الزوار.</p>':'<p class="hint" style="margin:0;color:var(--muted);font-size:.85rem">جاري التحميل…</p>')
+   +'<a class="btn ghost sm" style="margin-top:8px" href="'+esc(D.statsUrl())+'" target="_blank" rel="noopener">📊 لوحة الإحصائيات الكاملة ↗</a><p class="hint" style="margin:6px 0 0;color:var(--muted);font-size:.8rem">ادخل بحساب GoatCounter لترى الزوار يومًا بيوم، والدروس الأكثر زيارة، ونوع الهواتف.</p></div>'}
  else if((S.me.v||1)<5)o+='<p class="hint" style="margin:0;color:var(--muted);font-size:.85rem">عدد زوار الموقع ومشاهدات الدروس يظهران بعد تحديث الخادم إلى الإصدار 5.</p>';
  o+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" data-a="refresh"'+(TL.busy?" disabled":"")+'>🔄 تحديث الموقع الآن</button><button class="btn ghost sm" data-a="backup"'+(TL.busy?" disabled":"")+'>💾 نسخة احتياطية من الجدول</button></div>';
  if(TL.out)o+='<div class="ok-msg">'+TL.out+'</div>';
@@ -407,7 +421,7 @@ function copyText(t,btn){var done=function(){var o=btn.textContent;btn.textConte
  if(navigator.clipboard)navigator.clipboard.writeText(t).then(done,function(){fallback()});else fallback();
  function fallback(){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");done()}catch(e){}document.body.removeChild(a)}}
 
-function logout(){saveDraft();fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
+function logout(){saveDraft();fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.gcTotal=undefined;S.viewSrc=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
 
 app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if(!b)return;var a=b.dataset.a;
  if(a==="tab"){if(S.tab==="new"&&$("lf"))saveDraft();S.tab=b.dataset.k;S.msg=null;S.confirm=null;if(S.tab==="news"){NW.edit=null;NW.confirm=null}render();
