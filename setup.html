@@ -23,6 +23,12 @@
   ol.steps p{margin:0}
   .path{background:var(--ground);border-radius:8px;padding:6px 10px;font-size:.92rem}
   pre.code{margin:0;max-height:220px;overflow:auto;background:var(--charcoal);color:#E7E9EC;border-radius:10px;padding:12px;font-size:.75rem;direction:ltr;text-align:left;white-space:pre}
+  .pst{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:4px;font-size:.95rem}
+  .pbtns{display:flex;flex-direction:column;gap:8px}
+  .pbtns .btn{justify-content:space-between;display:flex;align-items:center;gap:10px;width:100%}
+  .pbtns .btn small{font-weight:400;opacity:.85}
+  .pbtns .btn.done{background:var(--ok);border-color:var(--ok)}
+  details.full summary{cursor:pointer;color:var(--muted);font-size:.9rem}
   .warn{border-inline-start:4px solid var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface));padding:10px 12px;border-radius:8px;font-size:.92rem}
 </style>
 </head>
@@ -38,7 +44,7 @@
   <p style="margin:0">فضاء الأساتذة يحفظ الدروس والملفات في حساب Google الخاص بالمؤسسة، مجانًا. افعل هذه الخطوات <b>من حاسوب</b> إن أمكن، أو من الهاتف مع تفعيل «إصدار سطح المكتب» في Chrome.</p>
   <div class="card" style="display:flex;flex-direction:column;gap:8px;border-color:var(--gold)">
     <h3 style="font-size:1.05rem">الخادم مركّب من قبل؟ حدّثه فقط <small id="latest" style="font-weight:400;color:var(--muted)"></small></h3>
-    <p style="margin:0">انسخ الكود من الخطوة 2، وفي محرر Google: حدّد الكل واحذفه، ثم الصق الجديد واحفظ 💾.</p>
+    <p style="margin:0">في محرر Google: حدّد الكل واحذفه، ثم الصق <b>أجزاء الكود</b> من الخطوة 2 بالترتيب، واحفظ 💾.</p>
     <p class="path" style="margin:0">نشر ← إدارة عمليات النشر ← ✏️ ← الإصدار: <b>إصدار جديد</b> ← نشر</p>
     <p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">الرابط لا يتغير، ولا حاجة لتشغيل setup مرة أخرى. البيانات والرموز تبقى كما هي. لمعرفة إصدار خادمك الحالي: زر «اختبار الاتصال» في الخطوة 5.</p>
     <p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">في جدول «دروس الموقع»: يمكنك ترتيب الصفوف أو إضافة أعمدة لك، لكن <b>لا تغيّر أسماء العناوين</b> في الصف الأول. بعد أي تعديل يدوي اضغط «تحديث الموقع الآن» في تبويب «الأساتذة».</p>
@@ -47,14 +53,21 @@
   <ol class="steps">
     <li><div class="b"><h3>افتح Google Apps Script</h3>
       <p>بحساب Gmail الخاص بالمؤسسة، افتح:</p><p><a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com ← مشروع جديد ↗</a></p></div></li>
-    <li><div class="b"><h3>الصق الكود</h3>
-      <p>احذف كل ما في المحرر، ثم الصق هذا الكود مكانه، واضغط أيقونة الحفظ 💾.</p>
-      <p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">آخر سطر في الكود هو <span class="mono">// ---- نهاية الكود ----</span>. إذا ظهر بعده أي سطر آخر، احذفه.</p>
-      <button class="btn" id="copy" type="button" style="align-self:flex-start">نسخ الكود</button>
-      <pre class="code" id="code">جاري التحميل…</pre></div></li>
+    <li><div class="b"><h3>الصق الكود (على أجزاء)</h3>
+      <p style="margin:0">الهاتف يقطع النص الطويل عند النسخ (عند 20 ألف حرف تقريبًا)، لذلك الكود مقسّم إلى <b id="pn">أجزاء</b>:</p>
+      <ol class="pst">
+        <li>في محرر Google: حدّد كل ما فيه واحذفه.</li>
+        <li>اضغط «نسخ الجزء 1»، ثم الصقه في المحرر.</li>
+        <li>اضغط «نسخ الجزء 2»، ثم ارجع إلى المحرر، واضغط <b>في آخر سطر</b> (تحت سطر «نهاية الجزء 1») والصقه هناك.</li>
+        <li>كرّر ذلك لكل جزء. آخر سطر في المحرر يجب أن يكون <b dir="ltr" style="unicode-bidi:isolate;white-space:nowrap">// ---- نهاية الكود ----</b>. ثم احفظ 💾.</li>
+      </ol>
+      <div id="parts" class="pbtns"><span style="color:var(--muted)">جاري تحميل الكود…</span></div>
+      <details class="full"><summary>من حاسوب: نسخ الكود كاملًا مرة واحدة</summary>
+        <button class="btn ghost sm" id="copy" type="button" style="margin:8px 0">نسخ الكود كاملًا</button>
+        <pre class="code" id="code">جاري التحميل…</pre></details></div></li>
     <li><div class="b"><h3>شغّل الإعداد</h3>
       <p>من القائمة في الأعلى اختر الدالة <b class="mono">setup</b> ثم اضغط <b>تشغيل</b>.</p>
-      <div class="warn">إذا ظهر <b>Syntax error</b>: انزل إلى آخر الكود واحذف كل ما بعد سطر «نهاية الكود»، ثم احفظ وأعد المحاولة.</div>
+      <div class="warn">إذا ظهر <b>Syntax error</b> أو <b>Unexpected end of input</b>: جزء لم يُلصق كاملًا أو لُصق في غير مكانه. احذف كل ما في المحرر وأعد لصق الأجزاء بالترتيب. وإذا ظهر سطر بعد «نهاية الكود»، احذفه.</div>
       <div class="warn">سيطلب Google الإذن ويقول إن «التطبيق لم يتم التحقق منه». هذا طبيعي لأنك أنت صاحب الكود: اضغط <b>Advanced / إعدادات متقدمة</b> ← <b>الانتقال إلى المشروع</b> ← <b>سماح</b>.</div>
       <p>في «سجل التنفيذ» أسفل الشاشة يظهر <b>رمز المدير</b> (مثل <span class="mono">K7QX-M3PA</span>). احفظه، فهو مفتاح دخولك.</p></div></li>
     <li><div class="b"><h3>انشر الخادم</h3>
@@ -74,10 +87,24 @@
 (function(){
 var $=function(id){return document.getElementById(id)},code="";
 var LATEST=0;
-fetch("google/Code.gs",{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){code=t;$("code").textContent=t;var m=t.match(/var VERSION = (\d+)/);if(m){LATEST=+m[1];$("latest").textContent="(آخر إصدار: "+LATEST+")"}},function(){$("code").textContent="تعذّر تحميل الكود. افتح google/Code.gs من المستودع."});
-$("copy").onclick=function(){var b=this;function done(){b.textContent="تم النسخ ✓";setTimeout(function(){b.textContent="نسخ الكود"},2000)}
- if(navigator.clipboard)navigator.clipboard.writeText(code).then(done,fb);else fb();
- function fb(){var r=document.createRange();r.selectNodeContents($("code"));var s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand("copy");done()}catch(e){}}};
+/* تقسيم الكود إلى أجزاء أقل من 13 ألف حرف، عند حدود الدوال (كل جزء كامل بذاته، وترتيبها لا يكسر شيئًا) */
+var MAXP=13000,PARTS=[];
+function split(t){var lines=t.replace(/\s+$/,"").split("\n"),blocks=[],cur=[];
+ lines.forEach(function(l){if(/^(function |var |\/\/ )/.test(l)&&cur.length&&!/^\/\/ /.test(cur[cur.length-1]||"x")){blocks.push(cur.join("\n"));cur=[]}cur.push(l)});
+ if(cur.length)blocks.push(cur.join("\n"));
+ var total=t.length,n=Math.max(1,Math.ceil(total/MAXP)),target=Math.ceil(total/n),parts=[],p="";
+ blocks.forEach(function(b){if(p&&p.length+b.length+1>target&&parts.length<n-1){parts.push(p);p=""}p+=(p?"\n":"")+b});
+ if(p)parts.push(p);
+ return parts.map(function(x,i){return i<parts.length-1?x+"\n// ---- نهاية الجزء "+(i+1)+" من "+parts.length+": الصق الجزء "+(i+2)+" تحت هذا السطر مباشرة ----\n":x+"\n"})}
+function copyText(t,ok){function fb(){var a=document.createElement("textarea");a.value=t;a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){}document.body.removeChild(a)}
+ if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,fb);else fb()}
+fetch("google/Code.gs",{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){code=t;$("code").textContent=t;var m=t.match(/var VERSION = (\d+)/);if(m){LATEST=+m[1];$("latest").textContent="(آخر إصدار: "+LATEST+")"}
+  PARTS=split(t);$("pn").textContent=PARTS.length+" أجزاء";
+  $("parts").innerHTML=PARTS.map(function(x,i){return'<button class="btn" type="button" data-p="'+i+'"><span>نسخ الجزء '+(i+1)+' من '+PARTS.length+'</span><small>'+x.length.toLocaleString("en")+' حرف</small></button>'}).join("")},
+ function(){$("code").textContent="تعذّر تحميل الكود. افتح google/Code.gs من المستودع.";$("parts").textContent="تعذّر تحميل الكود. أعد فتح الصفحة."});
+$("parts").addEventListener("click",function(e){var b=e.target.closest("[data-p]");if(!b)return;var i=+b.dataset.p;
+ copyText(PARTS[i],function(){b.classList.add("done");b.querySelector("span").textContent="✓ نُسخ الجزء "+(i+1)+" من "+PARTS.length+" — الصقه الآن"})});
+$("copy").onclick=function(){var b=this;copyText(code,function(){b.textContent="تم النسخ ✓";setTimeout(function(){b.textContent="نسخ الكود كاملًا"},2000)})};
 if(SITE.apiUrl)$("url").value=SITE.apiUrl;
 $("test").onclick=function(){var u=$("url").value.trim(),res=$("result");
  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\/]+\/exec$/.test(u)){res.innerHTML='<div class="msg">الرابط يجب أن يبدأ بـ https://script.google.com/macros/s/ وينتهي بـ /exec</div>';return}
