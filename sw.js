@@ -1,14 +1,17 @@
-/* عامل الخدمة: يجعل الموقع يعمل كتطبيق، ويحفظ ما فتحه التلميذ للعمل بدون إنترنت.
-   - الصفحات والكود: من الشبكة أولًا (حتى تصل التحديثات فورًا)، ومن النسخة المحفوظة عند انقطاع الإنترنت
-     أو إذا تأخرت الشبكة أكثر من 4 ثوانٍ.
+/* عامل الخدمة: يجعل الموقع يعمل كتطبيق سريع، ويحفظ ما فتحه التلميذ للعمل بدون إنترنت.
+   - الصفحات (HTML): تُعرض فورًا من النسخة المحفوظة في الهاتف، وتُحدَّث في الخلفية؛ التحديث يظهر في الزيارة التالية.
+   - الكود والتنسيق والخطوط (عناوينها تحمل رقم الإصدار ?v=): من الهاتف مباشرة، ولا تُطلب من الشبكة إلا مرة واحدة لكل إصدار.
    - ملفات PDF والصور الموجودة في الموقع: تُعرض فورًا من الهاتف، وتُحدَّث في الخلفية إن تغيّرت على الموقع.
+   - config.js وlessons.csv: من الشبكة أولًا (2.5 ثانية على الأكثر)، ثم من النسخة المحفوظة.
    - قائمة الدروس وصفحات الدروس من الخادم: من الشبكة أولًا، ومن آخر نسخة محفوظة بدون إنترنت.
    ملاحظة: ملفات Google Drive لا يمكن حفظها هنا؛ يحمّلها التلميذ بزر «تحميل». */
 /* لا تغيّر الاسم V: تغييره يمسح ما حفظه التلاميذ للعمل بدون إنترنت. تحديث هذا الملف يكفي لتحديث الصفحات. */
 var V = "doros-v3";
+/* عند تغيير رقم ?v= في الصفحات، غيّره هنا أيضًا (وإلا يُحمَّل الملف الجديد من الشبكة عند أول طلب فقط) */
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
-  "style.css", "common.js", "config.js", "imgpdf.js", "lessons.csv", "img/school.jpg",
-  "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
+  "style.css?v=6", "common.js?v=5", "imgpdf.js?v=4", "config.js", "lessons.csv",
+  "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
+  "img/school-600.webp", "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(V).then(function (c) {
@@ -25,23 +28,47 @@ self.addEventListener("activate", function (e) {
 function pageKey(req) { var u = new URL(req.url); return u.origin + u.pathname; }
 function apiKey(url) { var u = new URL(url); ["t", "seen", "visit", "vn"].forEach(function (k) { u.searchParams.delete(k); }); return "https://doros-api.local/?" + u.searchParams.toString(); }
 function timeout(ms) { return new Promise(function (ok) { setTimeout(function () { ok(null); }, ms); }); }
+function keep(c, key, res) { if (res && res.ok && res.type === "basic") c.put(key, res.clone()); return res; }
 
-/* صفحات وكود الموقع */
-function networkFirst(req, nav) {
+/* الصفحات: النسخة المحفوظة فورًا + تحديث في الخلفية. أول زيارة (لا نسخة): من الشبكة، وبدون إنترنت الصفحة الرئيسية */
+function pageSWR(e, req) {
   var key = pageKey(req);
-  var net = fetch(req).then(function (res) {
-    if (res && res.ok && res.type === "basic") { var copy = res.clone(); caches.open(V).then(function (c) { c.put(key, copy); }); }
-    return res;
-  });
-  var fallback = function () {
-    return caches.open(V).then(function (c) {
-      return c.match(key).then(function (m) { return m || (nav ? c.match(new URL("./", self.registration.scope).href) : null); });
+  return caches.open(V).then(function (c) {
+    return c.match(key).then(function (m) {
+      var net = fetch(req).then(function (res) { return keep(c, key, res); });
+      if (m) { e.waitUntil(net.catch(function () {})); return m; }
+      return net.catch(function () { return c.match(new URL("./", self.registration.scope).href).then(function (x) { return x || Response.error(); }); });
     });
-  };
-  /* شبكة بطيئة: بعد 4 ثوانٍ نعرض النسخة المحفوظة إن وُجدت، والشبكة تكمل تحديثها في الخلفية */
-  return Promise.race([net.catch(function () { return null; }), timeout(4000)]).then(function (res) {
-    if (res) return res;
-    return fallback().then(function (m) { return m || net.catch(function () { return fallback().then(function (x) { return x || Response.error(); }); }); });
+  });
+}
+
+/* ملفات بإصدار في عنوانها (?v=) والخطوط والأيقونات: لا تتغير، فتُقرأ من الهاتف مباشرة.
+   عند حفظ إصدار جديد نحذف الإصدارات القديمة من الملف نفسه */
+function versioned(req) {
+  var key = req.url;
+  return caches.open(V).then(function (c) {
+    return c.match(key).then(function (m) {
+      return m || fetch(req).then(function (res) {
+        if (res && res.ok && res.type === "basic") {
+          var path = new URL(key).pathname;
+          c.keys().then(function (ks) { ks.forEach(function (k) { var u = new URL(k.url); if (u.pathname === path && k.url !== key) c.delete(k); }); });
+          c.put(key, res.clone());
+        }
+        return res;
+      });
+    });
+  });
+}
+
+/* config.js وlessons.csv والباقي: من الشبكة أولًا، والنسخة المحفوظة إذا تأخرت الشبكة 2.5 ثانية أو انقطعت */
+function networkFirst(req) {
+  var key = pageKey(req);
+  return caches.open(V).then(function (c) {
+    var net = fetch(req).then(function (res) { return keep(c, key, res); });
+    return Promise.race([net.catch(function () { return null; }), timeout(2500)]).then(function (res) {
+      if (res) return res;
+      return c.match(key).then(function (m) { return m || net.catch(function () { return c.match(key).then(function (x) { return x || Response.error(); }); }); });
+    });
   });
 }
 
@@ -50,17 +77,14 @@ function staleRevalidate(e, req) {
   var key = req.url;
   return caches.open(V).then(function (c) {
     return c.match(key).then(function (m) {
-      var net = fetch(key, { cache: "no-cache", credentials: "same-origin" }).then(function (res) {
-        if (res && res.ok && res.type === "basic") c.put(key, res.clone());
-        return res;
-      });
+      var net = fetch(key, { cache: "no-cache", credentials: "same-origin" }).then(function (res) { return keep(c, key, res); });
       if (m) { e.waitUntil(net.catch(function () {})); return m; }
       return net;
     });
   });
 }
 
-/* ملفات لا تتغير أبدًا: الخطوط والمكتبات (عناوينها تحمل رقم الإصدار) */
+/* مكتبات خارجية بإصدار ثابت (pdf.js، رمز QR) */
 function cacheFirst(req) {
   return caches.open(V).then(function (c) {
     return c.match(req).then(function (m) {
@@ -89,10 +113,13 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin === self.location.origin) {
-    if (/\.(pdf|jpe?g|png|webp|svg)$/i.test(url.pathname)) { e.respondWith(staleRevalidate(e, req)); return; }
-    e.respondWith(networkFirst(req, req.mode === "navigate"));
+    var p = url.pathname;
+    if (/\/$|\.html$/.test(p) || (req.mode === "navigate" && !/\.[a-z0-9]+$/i.test(p))) { e.respondWith(pageSWR(e, req)); return; }
+    if (/[?&]v=/.test(url.search) || /\/(fonts|icons)\//.test(p)) { e.respondWith(versioned(req)); return; }
+    if (/\.(pdf|jpe?g|png|webp|svg)$/i.test(p)) { e.respondWith(staleRevalidate(e, req)); return; }
+    e.respondWith(networkFirst(req));
     return;
   }
   if (/[?&]api=lessons?(&|$)/.test(url.search)) { e.respondWith(apiFirst(req)); return; }
-  if (url.hostname === "fonts.gstatic.com" || url.hostname === "cdnjs.cloudflare.com") { e.respondWith(cacheFirst(req)); return; }
+  if (url.hostname === "cdnjs.cloudflare.com") { e.respondWith(cacheFirst(req)); return; }
 });

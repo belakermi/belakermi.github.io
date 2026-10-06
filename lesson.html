@@ -9,12 +9,13 @@
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/app-touch-180.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="preload" href="fonts/plex-ar-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="stylesheet" href="style.css?v=6">
 <script src="config.js"></script>
-<script src="common.js?v=4"></script>
+<script src="common.js?v=5"></script>
 <style>
   .head{display:flex;flex-direction:column;gap:8px}
   .head .where{font-size:.88rem}
@@ -34,6 +35,16 @@
   .file .fb img{display:block;margin:0 auto;max-height:85vh;object-fit:contain;background:#fff}
   .file .fb audio{display:block;width:calc(100% - 24px);margin:12px}
   .stack{display:flex;flex-direction:column;gap:12px}
+  .vfac{display:block;width:100%;padding:0;border:0;cursor:pointer}
+  .vfac img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9}
+  .vfac .play{position:absolute;inset:0;margin:auto;width:68px;height:48px;border-radius:14px;background:rgba(178,63,28,.94);box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  .vfac .play::after{content:"";position:absolute;inset:0;margin:auto;width:0;height:0;border-style:solid;border-width:11px 0 11px 19px;border-color:transparent transparent transparent #fff;transform:translateX(2px)}
+  .vfac:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .file .fb .pdfprev{display:block;position:relative;width:100%;padding:0;border:0;background:#fff;cursor:pointer;min-height:120px}
+  .file .fb .pdfprev img{display:block;width:100%;max-height:62vh;object-fit:cover;object-position:top;margin:0}
+  .file .fb .pdfprev .btn{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap}
+  .file .fb .pdfprev.noimg{min-height:150px;background:var(--ground)}
+  .file .fb .pdfprev.noimg img{display:none}
 </style>
 </head>
 <body>
@@ -78,16 +89,17 @@ function draw(l,stale){
 
  if(l.videos.length){o+='<section><div class="sec-t">'+(l.videos.length>1?"الفيديوهات":"الفيديو")+'</div><div class="stack">';
   l.videos.forEach(function(v,i){var yt=D.ytId(v),dr=D.driveId(v);
-   if(yt)o+='<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/'+yt+'?rel=0" title="فيديو '+(i+1)+'" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>';
-   else if(dr)o+='<div class="video"><iframe src="https://drive.google.com/file/d/'+dr+'/preview" title="فيديو '+(i+1)+'" loading="lazy" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
+   /* صورة الفيديو فقط (20 ك.ب)، ومشغّل YouTube أو Drive (أكثر من 1 م.ب) لا يُحمَّل إلا عند الضغط */
+   if(yt)o+='<button type="button" class="video vfac" data-a="play" data-src="'+esc("https://www.youtube-nocookie.com/embed/"+yt+"?rel=0&autoplay=1")+'" aria-label="شغّل الفيديو '+(i+1)+'"><img src="https://i.ytimg.com/vi/'+yt+'/hqdefault.jpg" alt="" loading="lazy"><span class="play" aria-hidden="true"></span></button>';
+   else if(dr)o+='<button type="button" class="video vfac" data-a="play" data-src="'+esc("https://drive.google.com/file/d/"+dr+"/preview")+'" aria-label="شغّل الفيديو '+(i+1)+'"><img src="'+esc(D.fileImage({id:dr}).replace("sz=w1600","sz=w800"))+'" alt="" loading="lazy" onerror="this.remove()"><span class="play" aria-hidden="true"></span></button>';
    else if(/^https:\/\//i.test(v))o+='<div class="card vlink"><span class="pill video">رابط</span><a href="'+esc(v)+'" target="_blank" rel="noopener" style="overflow-wrap:anywhere;color:var(--brick-ink)">افتح الفيديو ↗</a></div>'});
   o+='</div></section>'}
 
  if(l.files.length){o+='<section><div class="sec-t">'+(l.files.length>1?"الملفات":"الملف")+'</div><div class="stack">';
-  l.files.forEach(function(f,i){var open=i===0&&(f.kind==="pdf"||f.kind==="image");
+  l.files.forEach(function(f,i){var open=i===0&&(f.kind==="pdf"||f.kind==="image");   /* الملف الأول: صورة صفحته الأولى فقط، والعارض الكامل عند الضغط */
    o+='<div class="file" data-i="'+i+'"><div class="fh"><span class="pill pdf">'+esc(D.KINDS[f.kind]||"ملف")+'</span><span class="nm"><b>'+esc(f.name)+'</b><small>'+(f.size?D.size(f.size):'')+'</small></span>'
     +'<div class="acts"><button class="btn sm" data-a="toggle" data-i="'+i+'" aria-expanded="'+open+'">'+(open?"إخفاء":"اعرض")+'</button><a class="btn ghost sm" href="'+esc(D.fileDownload(f))+'" target="_blank" rel="noopener">تحميل ⤓</a></div></div>'
-    +'<div class="fb" id="fb'+i+'"'+(open?'':' hidden')+'>'+(open?body(f):'')+'</div></div>'});
+    +'<div class="fb" id="fb'+i+'"'+(open?'':' hidden')+'>'+(open?body(f,true,i):'')+'</div></div>'});
   o+='</div><p class="hint" style="margin:8px 0 0;font-size:.82rem;color:var(--muted)">إذا لم يظهر الملف، أو ظهرت رسالة من Google بأن عدد المشاهدات أو التحميلات كبير، أعد المحاولة بعد ساعة، أو اطلب نسخة من أستاذك.</p></section>'}
 
  if(!l.text&&!l.videos.length&&!l.files.length)o+='<div class="empty">هذا الدرس لا يحتوي محتوى بعد.</div>';
@@ -97,12 +109,15 @@ function draw(l,stale){
   var sb=ev.target.closest('[data-a="share"]');if(sb){D.share(stext,url);return}
   var cb=ev.target.closest('[data-a="copy"]');if(cb){var done=function(){cb.textContent="تم النسخ ✓";setTimeout(function(){cb.textContent="نسخ الرابط"},1800)};
    if(navigator.clipboard)navigator.clipboard.writeText(url).then(done,function(){prompt("انسخ الرابط:",url)});else prompt("انسخ الرابط:",url);return}
+  var pv=ev.target.closest('[data-a="play"]');if(pv){var w=document.createElement("div");w.className="video";w.innerHTML='<iframe src="'+esc(pv.dataset.src)+'" title="فيديو" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';pv.parentNode.replaceChild(w,pv);return}
+  var fu=ev.target.closest('[data-a="full"]');if(fu){var bx=$("fb"+fu.dataset.i);bx.innerHTML=body(l.files[+fu.dataset.i]);return}
   var b=ev.target.closest('[data-a="toggle"]');if(!b)return;var i=+b.dataset.i,box=$("fb"+i),f=l.files[i];
   if(box.hidden){if(!box.innerHTML)box.innerHTML=body(f);box.hidden=false;b.textContent="إخفاء";b.setAttribute("aria-expanded","true")}
   else{box.hidden=true;b.textContent="اعرض";b.setAttribute("aria-expanded","false")}});
 }
 
-function body(f){
+function body(f,light,i){
+ if(light&&f.kind==="pdf")return'<button type="button" class="pdfprev" data-a="full" data-i="'+i+'" aria-label="اعرض الملف كاملًا"><img src="'+esc(D.fileImage(f).replace("sz=w1600","sz=w800"))+'" alt="الصفحة الأولى من '+esc(f.name)+'" onerror="this.parentNode.classList.add(\'noimg\')"><span class="btn sm">اعرض الملف كاملًا</span></button>';
  if(f.kind==="image")return'<img src="'+esc(D.fileImage(f))+'" alt="'+esc(f.name)+'" loading="lazy">';
  return'<iframe src="'+esc(D.filePreview(f))+'" title="'+esc(f.name)+'" loading="lazy" allow="autoplay; fullscreen" allowfullscreen></iframe>';
 }

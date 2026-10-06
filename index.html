@@ -14,12 +14,13 @@
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/app-touch-180.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="preload" href="fonts/plex-ar-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="stylesheet" href="style.css?v=6">
 <script src="config.js"></script>
-<script src="common.js?v=4"></script>
+<script src="common.js?v=5"></script>
 </head>
 <body>
 <header class="facade">
@@ -29,7 +30,7 @@
     <h1 id="school">متوسطة الشهيد بلعكرمي أعمر</h1>
     <span class="dates" id="dates">1918 - 1961</span>
     <div class="glass">
-      <img src="img/school.jpg" alt="مدخل متوسطة الشهيد بلعكرمي أعمر" width="900" height="1301" fetchpriority="high">
+      <picture><source type="image/webp" srcset="img/school-600.webp 600w, img/school-900.webp 900w" sizes="(max-width: 800px) 100vw, 760px"><img src="img/school-hero.jpg" alt="مدخل متوسطة الشهيد بلعكرمي أعمر" width="900" height="450" fetchpriority="high" decoding="async"></picture>
       <span>دروس أساتذتنا، من الأولى إلى الرابعة متوسط</span>
     </div>
   </div>
@@ -249,9 +250,13 @@ function fetchApi(force){return D.lessons(force).then(function(L){apiL=mapApi(L)
  if(!navigator.onLine)notice(saved?"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.":"أنت بدون إنترنت. اتصل ثم أعد المحاولة.",true);
  else if(saved)notice("الخادم مشغول الآن، والمعروض هو آخر نسخة محفوظة في هاتفك.",true);
  else notice("تعذّر تحميل دروس الأساتذة (الخادم مشغول أو الاتصال ضعيف).",true)})}
+/* الدروس المرفوعة على الموقع (lessons.csv): آخر نسخة محفوظة في الهاتف تُعرض فورًا، والجديدة تُطلب في الخلفية */
+var CSVK="doros-csv-v1",csv0=null;try{csv0=localStorage.getItem(CSVK)}catch(e){}
+if(csv0!=null){base=fromRows(parseCSV(csv0));merge();loaded=true}
 render();D.inAppNote(document.querySelector("main"));
-fetch("lessons.csv?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){return fromRows(parseCSV(t))},function(){return[]})
- .then(function(L){base=L;merge();loaded=true;render()});
+fetch("lessons.csv?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){
+  if(t!==csv0){try{localStorage.setItem(CSVK,t)}catch(e){}base=fromRows(parseCSV(t));merge()}loaded=true;render()},
+ function(){loaded=true;render()});
 D.track("/","الصفحة الرئيسية");
 if(D.apiOn()){D.markVisit();fetchApi()}
 
