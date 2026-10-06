@@ -2,7 +2,7 @@
    - الصفحات (HTML): تُعرض فورًا من النسخة المحفوظة في الهاتف، وتُحدَّث في الخلفية؛ التحديث يظهر في الزيارة التالية.
    - الكود والتنسيق والخطوط (عناوينها تحمل رقم الإصدار ?v=): من الهاتف مباشرة، ولا تُطلب من الشبكة إلا مرة واحدة لكل إصدار.
    - ملفات PDF والصور الموجودة في الموقع: تُعرض فورًا من الهاتف، وتُحدَّث في الخلفية إن تغيّرت على الموقع.
-   - config.js وlessons.csv: من الشبكة أولًا (2.5 ثانية على الأكثر)، ثم من النسخة المحفوظة.
+   - config.js: من الهاتف فورًا ويُحدَّث في الخلفية. lessons.csv: من الشبكة أولًا (2.5 ثانية على الأكثر)، ثم من النسخة المحفوظة.
    - قائمة الدروس وصفحات الدروس من الخادم: من الشبكة أولًا، ومن آخر نسخة محفوظة بدون إنترنت.
    ملاحظة: ملفات Google Drive لا يمكن حفظها هنا؛ يحمّلها التلميذ بزر «تحميل». */
 /* لا تغيّر الاسم V: تغييره يمسح ما حفظه التلاميذ للعمل بدون إنترنت. تحديث هذا الملف يكفي لتحديث الصفحات. */
@@ -11,11 +11,12 @@ var V = "doros-v3";
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
   "style.css?v=6", "common.js?v=5", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
-  "img/school-600.webp", "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
+  "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(V).then(function (c) {
-    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u, { cache: "reload" })).catch(function () {}); }));
+    /* بدون cache:"reload": ما حمّلته الصفحة للتو يُؤخذ من ذاكرة المتصفح، فلا يُحمَّل مرتين */
+    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u)).catch(function () {}); }));
   }).then(function () { return self.skipWaiting(); }));
 });
 
@@ -60,7 +61,19 @@ function versioned(req) {
   });
 }
 
-/* config.js وlessons.csv والباقي: من الشبكة أولًا، والنسخة المحفوظة إذا تأخرت الشبكة 2.5 ثانية أو انقطعت */
+/* config.js: يُقرأ قبل ظهور الصفحة، فيُعطى من الهاتف فورًا ويُحدَّث في الخلفية (تغيير رابط الخادم يصل في الزيارة التالية) */
+function quickSWR(e, req) {
+  var key = pageKey(req);
+  return caches.open(V).then(function (c) {
+    return c.match(key).then(function (m) {
+      var net = fetch(req).then(function (res) { return keep(c, key, res); });
+      if (m) { e.waitUntil(net.catch(function () {})); return m; }
+      return net;
+    });
+  });
+}
+
+/* lessons.csv والباقي: من الشبكة أولًا، والنسخة المحفوظة إذا تأخرت الشبكة 2.5 ثانية أو انقطعت */
 function networkFirst(req) {
   var key = pageKey(req);
   return caches.open(V).then(function (c) {
@@ -116,6 +129,7 @@ self.addEventListener("fetch", function (e) {
     var p = url.pathname;
     if (/\/$|\.html$/.test(p) || (req.mode === "navigate" && !/\.[a-z0-9]+$/i.test(p))) { e.respondWith(pageSWR(e, req)); return; }
     if (/[?&]v=/.test(url.search) || /\/(fonts|icons)\//.test(p)) { e.respondWith(versioned(req)); return; }
+    if (/\/config\.js$/.test(p)) { e.respondWith(quickSWR(e, req)); return; }
     if (/\.(pdf|jpe?g|png|webp|svg)$/i.test(p)) { e.respondWith(staleRevalidate(e, req)); return; }
     e.respondWith(networkFirst(req));
     return;
