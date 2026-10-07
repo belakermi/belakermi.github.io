@@ -13,9 +13,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <script src="config.js"></script>
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
 <style>
   .head{display:flex;flex-direction:column;gap:8px}
   .head .where{font-size:.88rem}
@@ -35,6 +35,21 @@
   .file .fb img{display:block;margin:0 auto;max-height:85vh;object-fit:contain;background:#fff}
   .file .fb audio{display:block;width:calc(100% - 24px);margin:12px}
   .stack{display:flex;flex-direction:column;gap:12px}
+  .save.on{border-color:var(--gold);color:#8A6418;background:rgba(226,188,99,.16)}
+  .qrbox{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+  .qrprint{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .qrprint .qt{font-family:var(--display);font-size:1.2rem;unicode-bidi:plaintext}
+  .qrprint .qs{color:var(--muted);font-size:.85rem}
+  .qr{background:#fff;padding:10px;border-radius:8px;min-height:240px;min-width:240px;display:grid;place-items:center}
+  @media print{
+    body{background:#fff}
+    body *{visibility:hidden}
+    .qrprint,.qrprint *{visibility:visible}
+    .qrprint{position:fixed;inset:0;justify-content:center;gap:14px}
+    .qrprint .qt{font-size:22pt;color:#000}
+    .qrprint .qs{font-size:13pt;color:#333}
+    .qr img,.qr canvas{width:9cm!important;height:9cm!important}
+  }
   .vfac{display:block;width:100%;padding:0;border:0;cursor:pointer}
   .vfac img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9}
   .vfac .play{position:absolute;inset:0;margin:auto;width:68px;height:48px;border-radius:14px;background:rgba(178,63,28,.94);box-shadow:0 4px 16px rgba(0,0,0,.35)}
@@ -83,7 +98,8 @@ function draw(l,stale){
  var o='<section class="head"><span class="where">'+esc(y?y.name:"")+' · '+esc(s?s.n:"")+(l.term?' · '+D.TERMS[l.term-1]:'')+(l.unit?' · '+esc(l.unit):'')+'</span><h2>'+esc(l.title)+'</h2>'
   +'<div class="meta">'+(tp!=="lesson"?'<span class="pill t-'+tp+'">'+esc(D.typeName(tp))+'</span>':'')+(l.teacher?'<span>الأستاذ(ة): '+esc(l.teacher)+'</span><span>·</span>':'')+'<span>'+D.fmt(l.date)+'</span>'+(D.isNew(l.date)?'<span class="pill new">جديد</span>':'')+'</div>'
   +'<div class="sharebar">'+(navigator.share?'<button class="btn sm" type="button" data-a="share">مشاركة</button>':'')
-  +'<a class="btn sm wa" href="'+esc(D.waLink(stext,url))+'" target="_blank" rel="noopener">واتساب</a><button class="btn quiet sm" type="button" data-a="copy">نسخ الرابط</button></div></section>';
+  +'<a class="btn sm wa" href="'+esc(D.waLink(stext,url))+'" target="_blank" rel="noopener">واتساب</a><button class="btn quiet sm" type="button" data-a="copy">نسخ الرابط</button>'
+  +'<button class="btn quiet sm" type="button" data-a="qr" aria-expanded="false">رمز QR</button>'+saveBtn(l)+'</div></section><section class="card qrbox" id="qrbox" hidden></section>';
 
  if(l.text)o+='<section class="card"><div class="explain">'+esc(l.text)+'</div></section>';
 
@@ -109,12 +125,30 @@ function draw(l,stale){
   var sb=ev.target.closest('[data-a="share"]');if(sb){D.share(stext,url);return}
   var cb=ev.target.closest('[data-a="copy"]');if(cb){var done=function(){cb.textContent="تم النسخ ✓";setTimeout(function(){cb.textContent="نسخ الرابط"},1800)};
    if(navigator.clipboard)navigator.clipboard.writeText(url).then(done,function(){prompt("انسخ الرابط:",url)});else prompt("انسخ الرابط:",url);return}
+  var sv=ev.target.closest('[data-a="save"]');if(sv){var on=D.toggleSaved({k:"a:"+l.id,t:l.title,h:"lesson.html?id="+encodeURIComponent(l.id),y:l.year,s:l.subject,ty:D.typeOf(l)});
+   sv.outerHTML=saveBtn(l);return}
+  var qb=ev.target.closest('[data-a="qr"]');if(qb){var box=$("qrbox");if(!box.hidden){box.hidden=true;qb.setAttribute("aria-expanded","false");return}
+   box.hidden=false;qb.setAttribute("aria-expanded","true");
+   box.innerHTML='<div class="qrprint"><b class="qt">'+esc(l.title)+'</b><span class="qs">'+esc((y?y.name:"")+" · "+(s?s.n:""))+'</span><div id="qr" class="qr"></div><span class="qs">'+esc(SITE.name)+'</span></div>'
+    +'<p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">اعرضه على السبورة أو اطبعه في ورقة التمارين: التلميذ يوجّه كاميرا الهاتف نحوه فيفتح الدرس مباشرة.</p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" data-a="print">🖨️ اطبع</button><button class="btn quiet sm" type="button" data-a="qrclose">إغلاق</button></div>';
+   qrLib().then(function(){new QRCode($("qr"),{text:url,width:240,height:240,colorDark:"#1F2227",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M})},
+    function(){$("qr").textContent="تعذّر تحميل رمز QR. تحقق من الإنترنت ثم أعد المحاولة."});
+   box.scrollIntoView({behavior:"smooth",block:"nearest"});return}
+  if(ev.target.closest('[data-a="qrclose"]')){$("qrbox").hidden=true;var q2=document.querySelector('[data-a="qr"]');if(q2)q2.setAttribute("aria-expanded","false");return}
+  if(ev.target.closest('[data-a="print"]')){window.print();return}
   var pv=ev.target.closest('[data-a="play"]');if(pv){var w=document.createElement("div");w.className="video";w.innerHTML='<iframe src="'+esc(pv.dataset.src)+'" title="فيديو" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';pv.parentNode.replaceChild(w,pv);return}
   var fu=ev.target.closest('[data-a="full"]');if(fu){var bx=$("fb"+fu.dataset.i);bx.innerHTML=body(l.files[+fu.dataset.i]);return}
   var b=ev.target.closest('[data-a="toggle"]');if(!b)return;var i=+b.dataset.i,box=$("fb"+i),f=l.files[i];
   if(box.hidden){if(!box.innerHTML)box.innerHTML=body(f);box.hidden=false;b.textContent="إخفاء";b.setAttribute("aria-expanded","true")}
   else{box.hidden=true;b.textContent="اعرض";b.setAttribute("aria-expanded","false")}});
 }
+
+/* «احفظ للمراجعة» (في هاتف التلميذ فقط) */
+function saveBtn(l){var on=D.isSaved("a:"+l.id);return'<button class="btn quiet sm save'+(on?' on':'')+'" type="button" data-a="save" aria-pressed="'+on+'">'+(on?"★ محفوظ للمراجعة":"☆ احفظ للمراجعة")+'</button>'}
+/* رمز QR للدرس: يعرضه الأستاذ على السبورة أو يطبعه، فيمسحه التلميذ بكاميرا الهاتف. المكتبة تُحمَّل عند الضغط فقط */
+function qrLib(){return window.QRCode?Promise.resolve():new Promise(function(ok,bad){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+ s.integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU";s.crossOrigin="anonymous";s.referrerPolicy="no-referrer";s.onload=ok;s.onerror=bad;document.head.appendChild(s)})}
 
 function body(f,light,i){
  if(light&&f.kind==="pdf")return'<button type="button" class="pdfprev" data-a="full" data-i="'+i+'" aria-label="اعرض الملف كاملًا"><img src="'+esc(D.fileImage(f).replace("sz=w1600","sz=w800"))+'" alt="الصفحة الأولى من '+esc(f.name)+'" onerror="this.parentNode.classList.add(\'noimg\')"><span class="btn sm">اعرض الملف كاملًا</span></button>';

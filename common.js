@@ -162,6 +162,17 @@ var D = (function () {
       .then(function (j) { return parseInt(String((j && j.count) || "0").replace(/[^0-9]/g, ""), 10) || 0; }, function () { return null; });
   }
 
+  /* ---- «احفظ للمراجعة»: قائمة في هاتف التلميذ فقط (لا تُرسل لأي خادم) ---- */
+  var SK = "doros-saved-v1";
+  function saved() { var s = lsGet(SK, []); return Array.isArray(s) ? s.filter(function (x) { return x && x.k && x.h; }) : []; }
+  function isSaved(k) { return saved().some(function (x) { return x.k === k; }); }
+  function toggleSaved(item) {
+    var s = saved(), i = -1;
+    s.forEach(function (x, j) { if (x.k === item.k) i = j; });
+    if (i >= 0) s.splice(i, 1); else { item.at = Date.now(); s.unshift(item); }
+    lsSet(SK, s.slice(0, 100)); return i < 0;
+  }
+
   function getJson(q, tries) {
     var n = 0;
     function attempt() {
@@ -249,6 +260,6 @@ var D = (function () {
     typeName:typeName, typeOf:typeOf, unitKey:unitKey, digits:digits, fold:fold, today:today, activeNews:activeNews, waLink:waLink, share:share, siteUrl:siteUrl,
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
-    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
+    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, saved:saved, isSaved:isSaved, toggleSaved:toggleSaved, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
     canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS };
 })();

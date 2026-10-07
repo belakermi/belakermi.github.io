@@ -14,9 +14,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <script src="config.js"></script>
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
 <style>
   .intro{display:flex;gap:14px;align-items:flex-start}
   .intro .bem-badge{font-size:1.3rem;padding:10px 12px}
@@ -40,6 +40,7 @@
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
       <p><b style="color:var(--ink)">مواضيع الدورات السابقة وتصحيحاتها</b>، لتلاميذ الرابعة متوسط، ينشرها أساتذة المؤسسة.</p>
       <ol class="steps-mini"><li>حلّ الموضوع وحدك في الوقت المحدد.</li><li>ثم قارن إجابتك بالتصحيح.</li></ol>
+      <p class="bemcd" id="bemcd" hidden></p>
     </div>
   </section>
   <div id="error"></div>
@@ -75,6 +76,11 @@ function take(L){all=(L||[]).filter(function(l){var t=D.typeOf(l);return t==="be
 
 $("view").addEventListener("click",function(e){var b=e.target.closest("[data-s]");if(!b)return;pick=b.dataset.s;render()});
 D.inAppNote(document.querySelector("main"));
+/* عدّاد الأيام حتى امتحان BEM (التاريخ في config.js) */
+(function(){var d=String(SITE.bemDate||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return;
+ var t=new Date(d+"T08:00:00"),n=Math.ceil((t-new Date())/864e5);if(!(n>=0))return;
+ var M=["جانفي","فيفري","مارس","أفريل","ماي","جوان","جويلية","أوت","سبتمبر","أكتوبر","نوفمبر","ديسمبر"],when=(+d.slice(8))+" "+M[+d.slice(5,7)-1]+" "+d.slice(0,4);
+ var el=$("bemcd");el.hidden=false;el.innerHTML=n===0?"⏳ امتحان شهادة التعليم المتوسط <b>اليوم</b>. بالتوفيق!":"⏳ باقي <b>"+n+"</b> "+(n===1?"يوم":n===2?"يومان":n<=10?"أيام":"يومًا")+" على امتحان شهادة التعليم المتوسط ("+when+")."})();
 var saved=D.cached();if(saved)take(saved.lessons);
 if(!D.apiOn()){take([]);return}
 D.markVisit();D.track("/bem","مواضيع BEM");

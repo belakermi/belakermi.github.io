@@ -18,9 +18,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <script src="config.js"></script>
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
 </head>
 <body>
 <header class="facade">
@@ -53,6 +53,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     <input id="q" type="search" placeholder="ابحث عن درس في هذه السنة…" aria-label="ابحث عن درس" autocomplete="off">
   </div>
+  <section id="saved" hidden aria-label="محفوظاتي للمراجعة"></section>
   <section id="latest" hidden></section>
   <section id="view"><div class="skeleton"></div></section>
   <section class="install" id="install" hidden>
@@ -150,10 +151,22 @@ function pills(l){var o="";if(isNew(l.date))o+='<span class="pill new">جديد<
   if(!l.files.length&&!l.videos.length)o+='<span class="pill link">شرح</span>'}
  else{var k=kind(l.url);o+='<span class="pill '+k+'">'+KIND[k]+'</span>'}
  return o}
+/* «احفظ للمراجعة» */
+var byKey={};
+function lkey(l){return l.src==="api"?"a:"+l.apiId:"c:"+l.url}
+function star(l){var k=lkey(l),on=D.isSaved(k);byKey[k]=l;
+ return'<button class="star" type="button" data-act="save" data-k="'+esc(k)+'" aria-pressed="'+on+'" aria-label="'+(on?"أزل من المحفوظات":"احفظ للمراجعة")+'" title="'+(on?"محفوظ للمراجعة":"احفظ للمراجعة")+'">'+(on?"★":"☆")+'</button>'}
+function renderSaved(){var el=$("saved"),S=D.saved();
+ if(!S.length||ui.subj||ui.q){el.hidden=true;el.innerHTML="";return}
+ var row=function(x){var s=subj(x.s),y=YEARS[(+x.y||1)-1];return'<div class="mini sv"><a href="'+esc(x.h)+'"'+(x.ext?' target="_blank" rel="noopener"':'')+'><span class="mt"><b>'+esc(x.t)+'</b><small>'+esc(y?y.name:"")+(s?' · '+esc(s.n):'')+'</small></span></a><button class="x" type="button" data-act="unsave" data-k="'+esc(x.k)+'" aria-label="أزل من المحفوظات">×</button></div>'};
+ el.hidden=false;el.innerHTML='<div class="sec-h" style="margin-bottom:8px"><h2>★ محفوظاتي للمراجعة</h2><small style="color:var(--muted)">'+S.length+'</small></div><div class="minis">'+S.slice(0,5).map(row).join("")+'</div>'
+  +(S.length>5?'<details class="more-saved"><summary>عرض الكل ('+S.length+')</summary><div class="minis">'+S.slice(5).map(row).join("")+'</div></details>':'')}
+function setStars(k,on){Array.prototype.forEach.call(document.querySelectorAll('.star[data-k]'),function(b){if(b.getAttribute("data-k")!==k)return;b.setAttribute("aria-pressed",String(on));b.textContent=on?"★":"☆";b.setAttribute("aria-label",on?"أزل من المحفوظات":"احفظ للمراجعة");b.title=on?"محفوظ للمراجعة":"احفظ للمراجعة"})}
+
 function card(l,showWhere){var meta=[],s=subj(l.subject);
  if(l.unit)meta.push(esc(l.unit));if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(fmt(l.date));
  var o='<article class="lesson">'+(showWhere?'<span class="where">'+esc(YEARS[l.year-1].name)+' · '+esc(s.n)+'</span>':"")
-  +'<div class="row"><h4>'+esc(l.title)+'</h4><span class="tags">'+pills(l)+'</span></div>'
+  +'<div class="row"><h4>'+esc(l.title)+'</h4><span class="tags">'+pills(l)+star(l)+'</span></div>'
   +(meta.length?'<div class="meta">'+meta.map(function(x){return"<span>"+x+"</span>"}).join("<span>·</span>")+'</div>':"")
   +(l.text?'<p class="note excerpt">'+esc(l.text)+'</p>':"")+(l.note?'<p class="note">'+esc(l.note)+'</p>':"");
  if(l.src==="api")o+='<a class="open" href="'+esc(openHref(l))+'">افتح الدرس</a>';
@@ -195,7 +208,7 @@ function renderView(){var o="",yname=YEARS[ui.year-1].name;
   if(empty.length)o+='<details class="more-subj"'+(full.length?'':' open')+'><summary>مواد أخرى لم تُنشر فيها دروس بعد ('+empty.length+')</summary><div class="subjects">'+empty.map(function(s){return subjBtn(s,0)}).join("")+'</div></details>';
  }else{
   var s=subj(ui.subj),all=lessons.filter(function(l){return l.year===ui.year&&l.subject===ui.subj});
-  o='<div class="sec-h" style="margin-bottom:12px"><h2>'+s.n+' · '+yname+'</h2><button class="back" data-act="back">→ كل المواد</button></div>';
+  o='<div class="sec-h" style="margin-bottom:12px"><h2>'+s.n+' · '+yname+'</h2><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="back" data-act="shareSubj" title="أرسل رابط هذه المادة لمجموعة القسم">مشاركة ↗</button><button class="back" data-act="back">→ كل المواد</button></span></div>';
   if(!all.length){o+='<div class="empty">لم يُضِف الأستاذ دروسًا لهذه المادة بعد. عُد لاحقًا.</div>';$("view").innerHTML=o;return}
   /* أزرار التصفية حسب النوع */
   var present=D.TYPES.filter(function(t){return all.some(function(l){return l.type===t.k})});
@@ -227,7 +240,7 @@ function terms(list){var o="",termed=list.some(function(l){return l.term>0});
   o+='</section>'});
  return o+'</div>'}
 
-function render(){renderNews();renderYears();renderLatest();renderView();$("q").placeholder="ابحث عن درس في "+YEARS[ui.year-1].name+"…"}
+function render(){renderNews();renderYears();renderSaved();renderLatest();renderView();$("q").placeholder="ابحث عن درس في "+YEARS[ui.year-1].name+"…"}
 /* كل اختيار يُضاف إلى سجل التصفح: زر «رجوع» في الهاتف يعود خطوة داخل الموقع بدل الخروج منه */
 function go(){var h="#y"+ui.year+(ui.subj?"-"+ui.subj:"");if(location.hash!==h)history.pushState(null,"",h);render()}
 function fromHash(){var m=(location.hash||"").slice(1).match(/^y([1-4])(?:-([a-z]+))?$/);
@@ -237,9 +250,15 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("[data-ac
  else if(a==="subj"){ui.subj=b.getAttribute("data-k");ui.type="";ui.q="";$("q").value="";$("view").scrollIntoView({behavior:"smooth",block:"start"})}
  else if(a==="back"){ui.subj=null;ui.type=""}
  else if(a==="type"){ui.type=b.getAttribute("data-t")||"";renderView();return}
+ else if(a==="save"){var k=b.getAttribute("data-k"),l=byKey[k];if(!l)return;
+  var on=D.toggleSaved({k:k,t:l.title,h:openHref(l),y:l.year,s:l.subject,ty:l.type,ext:!inSite(l)});setStars(k,on);renderSaved();
+  if(on&&l.src==="api")D.lesson(l.apiId).catch(function(){});   /* يُحفظ في الهاتف ليفتح بدون إنترنت */
+  return}
+ else if(a==="unsave"){var k2=b.getAttribute("data-k");D.toggleSaved({k:k2});setStars(k2,false);renderSaved();return}
+ else if(a==="shareSubj"){var s2=subj(ui.subj);D.share("دروس "+(s2?s2.n:"")+" · "+YEARS[ui.year-1].name+" — "+SITE.name,D.siteUrl("./#y"+ui.year+"-"+ui.subj));return}
  go()});
 window.addEventListener("popstate",fromHash);window.addEventListener("hashchange",fromHash);
-$("q").addEventListener("input",function(){ui.q=this.value.trim();if(ui.q)ui.subj=null;renderLatest();renderView()});
+$("q").addEventListener("input",function(){ui.q=this.value.trim();if(ui.q)ui.subj=null;renderSaved();renderLatest();renderView()});
 
 /* ---- التحميل: الدروس المحلية + دروس الأساتذة (نسخة الهاتف فورًا، ثم الخادم) ---- */
 var saved=D.apiOn()?D.cached():null,base=[],apiL=saved?mapApi(saved.lessons):[];

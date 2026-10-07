@@ -10,5 +10,8 @@ var SITE = {
   apiUrl: "https://script.google.com/macros/s/AKfycbxfgDn2bayb_P3u041DVzILOZet_f0ZN2Fk58WPdf7oxiXiZSQGjTRxK2Gy5gsTwR4D/exec",
 
   /* إحصائيات الزوار ومشاهدات الدروس: اسم الحساب في GoatCounter (مجاني، بدون كوكيز) — belakermi1.goatcounter.com */
-  stats: "belakermi1"
+  stats: "belakermi1",
+
+  /* موعد امتحان شهادة التعليم المتوسط (أول يوم) بالشكل 2027-05-09 — يظهر عدّاد الأيام في صفحة BEM. فارغ = بدون عدّاد */
+  bemDate: ""
 };
