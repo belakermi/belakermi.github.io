@@ -12,11 +12,20 @@ var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teac
   "style.css?v=7", "common.js?v=6", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
   "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
+/* صورة المتوسطة في الصفحة الرئيسية: الهاتف يختار نسخة واحدة حسب شاشته، فنحفظ التي حمّلها فقط (بدون أي تحميل إضافي)
+   لتظهر الصورة حتى لو فُتح التطبيق بدون إنترنت بعد أول زيارة */
+var IF_LOADED = ["img/school-600.webp", "img/school-900.webp", "img/school-hero.jpg"];
+
+function fromBrowserCache(c, u) {
+  try { return c.add(new Request(u, { cache: "only-if-cached", mode: "same-origin" })).catch(function () {}); }
+  catch (err) { return Promise.resolve(); }   /* متصفح لا يعرف only-if-cached: لا شيء */
+}
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(V).then(function (c) {
     /* بدون cache:"reload": ما حمّلته الصفحة للتو يُؤخذ من ذاكرة المتصفح، فلا يُحمَّل مرتين */
-    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u)).catch(function () {}); }));
+    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u)).catch(function () {}); })
+      .concat(IF_LOADED.map(function (u) { return fromBrowserCache(c, u); })));
   }).then(function () { return self.skipWaiting(); }));
 });
 

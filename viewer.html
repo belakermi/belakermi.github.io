@@ -89,12 +89,17 @@ pdfjsLib.getDocument({url:file,disableRange:true,disableStream:true,cMapUrl:CDN+
  for(var i=1;i<=d.numPages;i++)(function(n){chain=chain.then(function(){return d.getPage(n)}).then(function(page){
   var vp=page.getViewport({scale:1}),el=document.createElement("div");el.className="pg wait";el.style.aspectRatio=vp.width+" / "+vp.height;el.dataset.n=n;
   var lab=document.createElement("span");lab.className="n";lab.textContent=n;el.appendChild(lab);box.appendChild(el);
-  slots.push({n:n,page:page,el:el,w:0,busy:false,visible:false});io.observe(el)})})(i);
+  slots.push({n:n,page:page,el:el,w:0,busy:false,visible:false,near:true});io.observe(el);far.observe(el)})})(i);
  return chain.then(function(){$("dock").hidden=false;$("pnum").textContent="1 / "+d.numPages;updateZoom()});
 }).catch(function(){fail("تعذّر عرض الدرس على هذا الجهاز. حمّل الملف وافتحه في هاتفك.")});
 
 var io=new IntersectionObserver(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.visible=e.isIntersecting;if(s.visible)draw(s)})},{rootMargin:"600px 0px"});
 var cur=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&doc)$("pnum").textContent=e.target.dataset.n+" / "+doc.numPages})},{rootMargin:"-45% 0px -45% 0px"});
+/* الصفحات البعيدة عن الشاشة (أكثر من شاشة ونصف) تُفرَّغ من الذاكرة، وتُرسم من جديد عند الرجوع إليها:
+   ملف طويل أو تكبير على هاتف قديم لا يملأ ذاكرته */
+var far=new IntersectionObserver(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.near=e.isIntersecting;if(!s.near)evict(s)})},{rootMargin:"150% 0px"});
+function evict(s){if(s.busy||!s.w)return;var c=s.el.querySelector("canvas");if(c){c.width=0;c.height=0;s.el.removeChild(c)}
+ s.el.classList.add("wait");s.w=0;try{s.page.cleanup()}catch(e){}}
 function slot(el){for(var i=0;i<slots.length;i++)if(slots[i].el===el)return slots[i];return null}
 
 function draw(s){var cssW=s.el.clientWidth,need=Math.round(cssW*DPR);if(!need||s.busy||Math.abs(s.w-need)<8)return;
@@ -103,7 +108,7 @@ function draw(s){var cssW=s.el.clientWidth,need=Math.round(cssW*DPR);if(!need||s
  s.page.render({canvasContext:c.getContext("2d",{alpha:false}),viewport:vp}).promise.then(function(){
   var old=s.el.querySelector("canvas");if(old)s.el.removeChild(old);s.el.insertBefore(c,s.el.firstChild);s.el.classList.remove("wait");s.w=need;
   if(!s.observed){cur.observe(s.el);s.observed=true}
- }).catch(function(){}).then(function(){s.busy=false;if(s.visible&&Math.abs(Math.round(s.el.clientWidth*DPR)-s.w)>=8)draw(s)})}
+ }).catch(function(){}).then(function(){s.busy=false;if(!s.near){evict(s);return}if(s.visible&&Math.abs(Math.round(s.el.clientWidth*DPR)-s.w)>=8)draw(s)})}
 
 function updateZoom(){var z=ZOOMS[zi];$("pages").style.maxWidth=z===1?"900px":Math.round(Math.max(window.innerWidth,600)*z)+"px";
  $("pages").style.width=z===1?"100%":Math.round(window.innerWidth*z)+"px";

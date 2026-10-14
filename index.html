@@ -224,10 +224,12 @@ function renderView(){var o="",yname=YEARS[ui.year-1].name;
  }
  $("view").innerHTML=o}
 
+/* الدروس بلا فصل (ملفات lessons.csv، أو «بدون تحديد» في فضاء الأساتذة) تُعرض أولًا بعنوان «لكل السنة»،
+   ولا تنزل إلى آخر الصفحة كـ«دروس أخرى» عندما ينشر أستاذ أول درس بفصل */
 function terms(list){var o="",termed=list.some(function(l){return l.term>0});
  o+='<div style="display:flex;flex-direction:column;gap:18px">';
- [1,2,3,0].forEach(function(t){var T=list.filter(function(l){return l.term===t});if(!T.length)return;
-  o+='<section class="term">'+(termed?'<h3>'+(t?TERMS[t-1]:"دروس أخرى")+'</h3>':'');
+ [0,1,2,3].forEach(function(t){var T=list.filter(function(l){return l.term===t});if(!T.length)return;
+  o+='<section class="term">'+(termed?'<h3>'+(t?TERMS[t-1]:"لكل السنة")+'</h3>':'');
   var withUnit=T.filter(function(l){return l.unit});
   if(!withUnit.length){o+=T.slice().sort(byNewest).map(function(l){return card(l,false)}).join("")}
   else{
