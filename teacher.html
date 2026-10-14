@@ -340,7 +340,7 @@ function statsViews(g){var L=S.mine||[];if(!D.statsOn()||!L.length||L.some(funct
  for(var k=0;k<6;k++)next()}
 
 /* ---- عدد المشاهدات (خادم الإصدار 5) ---- */
-function viewWord(n){return n===1?"مشاهدة":n===2?"مشاهدتان":n>=3&&n<=10?"مشاهدات":"مشاهدة"}
+function viewWord(n){var r=n%100;return n===2?"مشاهدتان":r>=3&&r<=10?"مشاهدات":"مشاهدة"}   /* 105 مشاهدات، 111 مشاهدة */
 function viewSummary(){var tot=0,top=null,by={};
  S.mine.forEach(function(l){var n=l.views||0;tot+=n;if(n&&(!top||n>top.views))top=l;
   if(S.me.role==="admin"){var k=l.teacher||"—";by[k]=by[k]||{n:0,c:0};by[k].n+=n;by[k].c++}});

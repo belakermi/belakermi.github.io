@@ -77,10 +77,13 @@ function take(L){all=(L||[]).filter(function(l){var t=D.typeOf(l);return t==="be
 $("view").addEventListener("click",function(e){var b=e.target.closest("[data-s]");if(!b)return;pick=b.dataset.s;render()});
 D.inAppNote(document.querySelector("main"));
 /* عدّاد الأيام حتى امتحان BEM (التاريخ في config.js) */
-(function(){var d=String(SITE.bemDate||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return;
- var t=new Date(d+"T08:00:00"),n=Math.ceil((t-new Date())/864e5);if(!(n>=0))return;
- var M=["جانفي","فيفري","مارس","أفريل","ماي","جوان","جويلية","أوت","سبتمبر","أكتوبر","نوفمبر","ديسمبر"],when=(+d.slice(8))+" "+M[+d.slice(5,7)-1]+" "+d.slice(0,4);
- var el=$("bemcd");el.hidden=false;el.innerHTML=n===0?"⏳ امتحان شهادة التعليم المتوسط <b>اليوم</b>. بالتوفيق!":"⏳ باقي <b>"+n+"</b> "+(n===1?"يوم":n===2?"يومان":n<=10?"أيام":"يومًا")+" على امتحان شهادة التعليم المتوسط ("+when+")."})();
+/* «2027-06-07» تاريخ رسمي؛ «2027-06-07 تقديري» تاريخ تقديري (يُكتب ذلك للتلاميذ) */
+(function(){var s=D.digits(String(SITE.bemDate||"")).trim(),m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(!m)return;
+ var approx=/تقدير/.test(s),y=+m[1],mo=+m[2],dd=+m[3];if(mo<1||mo>12||dd<1||dd>31)return;
+ var t=new Date(y,mo-1,dd,8),n=Math.ceil((t-new Date())/864e5);if(!(n>=0))return;
+ var M=["جانفي","فيفري","مارس","أفريل","ماي","جوان","جويلية","أوت","سبتمبر","أكتوبر","نوفمبر","ديسمبر"],when=dd+" "+M[mo-1]+" "+y;
+ var r=n%100,w=n===1?"يوم":n===2?"يومان":r>=3&&r<=10?"أيام":r>=11?"يومًا":"يوم";
+ var el=$("bemcd");el.hidden=false;el.innerHTML=n===0?"⏳ امتحان شهادة التعليم المتوسط <b>اليوم</b>. بالتوفيق!":"⏳ باقي <b>"+n+"</b> "+w+" على امتحان شهادة التعليم المتوسط ("+when+(approx?"، تاريخ تقديري إلى أن تُعلن الوزارة التاريخ الرسمي":"")+")."})();
 var saved=D.cached();if(saved)take(saved.lessons);
 if(!D.apiOn()){take([]);return}
 D.markVisit();D.track("/bem","مواضيع BEM");
