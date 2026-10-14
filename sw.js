@@ -1,5 +1,6 @@
 /* عامل الخدمة: يجعل الموقع يعمل كتطبيق سريع، ويحفظ ما فتحه التلميذ للعمل بدون إنترنت.
-   - الصفحات (HTML): تُعرض فورًا من النسخة المحفوظة في الهاتف، وتُحدَّث في الخلفية؛ التحديث يظهر في الزيارة التالية.
+   - الصفحات (HTML): تُعرض فورًا من النسخة المحفوظة في الهاتف، وتُحدَّث في الخلفية؛ إن تغيّرت تعيد الصفحة فتح نفسها
+     مرة واحدة إن فُتحت للتو ولم يلمسها المستخدم، وإلا يظهر التحديث في الزيارة التالية.
    - الكود والتنسيق والخطوط (عناوينها تحمل رقم الإصدار ?v=): من الهاتف مباشرة، ولا تُطلب من الشبكة إلا مرة واحدة لكل إصدار.
    - ملفات PDF والصور الموجودة في الموقع: تُعرض فورًا من الهاتف، وتُحدَّث في الخلفية إن تغيّرت على الموقع.
    - config.js: من الهاتف فورًا ويُحدَّث في الخلفية. lessons.csv: من الشبكة أولًا (2.5 ثانية على الأكثر)، ثم من النسخة المحفوظة.
@@ -9,7 +10,7 @@
 var V = "doros-v3";
 /* عند تغيير رقم ?v= في الصفحات، غيّره هنا أيضًا (وإلا يُحمَّل الملف الجديد من الشبكة عند أول طلب فقط) */
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
-  "style.css?v=7", "common.js?v=6", "imgpdf.js?v=4", "config.js", "lessons.csv",
+  "style.css?v=7", "common.js?v=7", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
   "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 /* صورة المتوسطة في الصفحة الرئيسية: الهاتف يختار نسخة واحدة حسب شاشته، فنحفظ التي حمّلها فقط (بدون أي تحميل إضافي)
@@ -23,8 +24,9 @@ function fromBrowserCache(c, u) {
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(V).then(function (c) {
-    /* بدون cache:"reload": ما حمّلته الصفحة للتو يُؤخذ من ذاكرة المتصفح، فلا يُحمَّل مرتين */
-    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u)).catch(function () {}); })
+    /* cache:"no-cache": سؤال صغير للموقع عن كل ملف (If-None-Match). ما لم يتغير لا يُحمَّل مرة ثانية،
+       وما تغيّر يُؤخذ جديدًا (لا نسخة قديمة من ذاكرة المتصفح، التي يحتفظ بها GitHub Pages 10 دقائق) */
+    return Promise.all(SHELL.map(function (u) { return c.add(new Request(u, { cache: "no-cache" })).catch(function () {}); })
       .concat(IF_LOADED.map(function (u) { return fromBrowserCache(c, u); })));
   }).then(function () { return self.skipWaiting(); }));
 });
@@ -40,14 +42,34 @@ function apiKey(url) { var u = new URL(url); ["t", "seen", "visit", "vn"].forEac
 function timeout(ms) { return new Promise(function (ok) { setTimeout(function () { ok(null); }, ms); }); }
 function keep(c, key, res) { if (res && res.ok && res.type === "basic") c.put(key, res.clone()); return res; }
 
-/* الصفحات: النسخة المحفوظة فورًا + تحديث في الخلفية. أول زيارة (لا نسخة): من الشبكة، وبدون إنترنت الصفحة الرئيسية */
+/* سؤال الموقع مع تحقق صغير: يتخطى ذاكرة المتصفح (10 دقائق)، وما لم يتغير يأتي جوابه 304 بدون تحميل */
+function fresh(url) { return fetch(url, { cache: "no-cache", credentials: "same-origin" }); }
+
+/* أخبر الصفحات المفتوحة أن نسخة أحدث حُفظت (الصفحة التي فُتحت للتو تعيد فتح نفسها، انظر common.js).
+   نُرسل مرتين: الصفحة الجديدة قد لا تكون جاهزة لاستقبال الرسالة في المرة الأولى */
+function announce(u) {
+  function send() { return self.clients.matchAll({ type: "window" }).then(function (cs) { cs.forEach(function (c) { c.postMessage({ t: "fresh", u: u }); }); }); }
+  return send().then(function () { return timeout(1500); }).then(send);
+}
+
+/* تحديث النسخة المحفوظة في الخلفية، وإعلان الصفحات إن تغيّرت فعلًا */
+function revalidate(c, key, old, u) {
+  return fresh(key).then(function (res) {
+    if (!res || !res.ok || res.type !== "basic" || res.redirected) return;
+    return Promise.all([old.text(), res.clone().text()]).then(function (t) {
+      return c.put(key, res).then(function () { if (t[0] !== t[1]) return announce(u); });
+    });
+  });
+}
+
+/* الصفحات: النسخة المحفوظة فورًا + تحديث في الخلفية (والصفحة تُبلَّغ إن تغيّرت). أول زيارة (لا نسخة): من الشبكة، وبدون إنترنت الصفحة الرئيسية */
 function pageSWR(e, req) {
   var key = pageKey(req);
   return caches.open(V).then(function (c) {
     return c.match(key).then(function (m) {
-      var net = fetch(req).then(function (res) { return keep(c, key, res); });
-      if (m) { e.waitUntil(net.catch(function () {})); return m; }
-      return net.catch(function () { return c.match(new URL("./", self.registration.scope).href).then(function (x) { return x || Response.error(); }); });
+      if (m) { e.waitUntil(revalidate(c, key, m.clone(), key).catch(function () {})); return m; }
+      return fetch(req).then(function (res) { return keep(c, key, res); })
+        .catch(function () { return c.match(new URL("./", self.registration.scope).href).then(function (x) { return x || Response.error(); }); });
     });
   });
 }
@@ -70,14 +92,14 @@ function versioned(req) {
   });
 }
 
-/* config.js: يُقرأ قبل ظهور الصفحة، فيُعطى من الهاتف فورًا ويُحدَّث في الخلفية (تغيير رابط الخادم يصل في الزيارة التالية) */
+/* config.js: يُقرأ قبل ظهور الصفحة، فيُعطى من الهاتف فورًا ويُحدَّث في الخلفية؛ إن تغيّر (رابط الخادم، تاريخ الشهادة…)
+   تُبلَّغ كل الصفحات المفتوحة، فتعيد فتح نفسها إن فُتحت للتو */
 function quickSWR(e, req) {
   var key = pageKey(req);
   return caches.open(V).then(function (c) {
     return c.match(key).then(function (m) {
-      var net = fetch(req).then(function (res) { return keep(c, key, res); });
-      if (m) { e.waitUntil(net.catch(function () {})); return m; }
-      return net;
+      if (m) { e.waitUntil(revalidate(c, key, m.clone(), "*").catch(function () {})); return m; }
+      return fetch(req).then(function (res) { return keep(c, key, res); });
     });
   });
 }

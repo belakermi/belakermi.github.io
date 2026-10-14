@@ -248,6 +248,20 @@ var D = (function () {
   var installEvt = null, installCbs = [];
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+    /* الصفحة تُعرض فورًا من نسخة الهاتف، وعامل الخدمة يسأل الموقع في الخلفية. إن وجد نسخة أحدث من هذه الصفحة
+       أو من config.js (مثلًا تاريخ الشهادة) يخبرنا: نعيد فتح الصفحة مرة واحدة إن فُتحت للتو ولم يلمسها التلميذ بعد،
+       وإلا تظهر النسخة الجديدة في الزيارة القادمة دون إزعاجه */
+    var openedAt = Date.now(), touched = false;
+    ["pointerdown", "touchstart", "keydown", "wheel"].forEach(function (n) { window.addEventListener(n, function () { touched = true; }, { capture: true, passive: true }); });
+    navigator.serviceWorker.addEventListener("message", function (ev) {
+      var d = ev.data || {};
+      if (d.t !== "fresh" || (d.u !== "*" && d.u !== location.origin + location.pathname)) return;
+      if (touched || Date.now() - openedAt > 8000) return;
+      var k = "doros-fresh:" + location.pathname;
+      try { if (Date.now() - (+sessionStorage.getItem(k) || 0) < 60000) return; sessionStorage.setItem(k, String(Date.now())); } catch (e) { return; }
+      location.reload();
+    });
+    if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages();
   }
   window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; installCbs.forEach(function (f) { f(); }); });
   function canInstall() { return !!installEvt; }
