@@ -173,13 +173,18 @@ var D = (function () {
     lsSet(SK, s.slice(0, 100)); return i < 0;
   }
 
+  /* طلب عالق (شبكة هاتف تنقطع بصمت، أو طلب نادر يتأخر عند Google تحت الضغط) يُلغى بعد 15 ثانية ويُعاد،
+     بدل أن ينتظر التلميذ بلا نهاية */
+  var GET_TIMEOUT = 15000;
   function getJson(q, tries) {
     var n = 0;
     function attempt() {
       n++;
-      var sent = viewParams();
-      return fetch(getUrl(q + sent.s)).then(function (r) {
+      var sent = viewParams(), ac = window.AbortController ? new AbortController() : null;
+      var tm = ac ? setTimeout(function () { ac.abort(); }, GET_TIMEOUT) : 0;
+      return fetch(getUrl(q + sent.s), ac ? { signal: ac.signal } : undefined).then(function (r) {
         return r.text().then(function (t) {
+          clearTimeout(tm);
           var j; try { j = JSON.parse(t); } catch (e) { j = null; }
           if (!j) {
             /* صفحة «الخادم يعمل» = خادم قديم لا يعرف هذا الطلب. أي صفحة أخرى = زحام أو خطأ مؤقت عند Google */
@@ -190,6 +195,7 @@ var D = (function () {
           return j;
         });
       }).catch(function (e) {
+        clearTimeout(tm);
         if (e && e.code === "UNSUPPORTED") throw e;
         if (n >= tries) { var x = new Error("NETWORK"); x.code = "NETWORK"; throw x; }
         return wait((n === 1 ? 1200 : 3500) + Math.random() * 2500).then(attempt);
