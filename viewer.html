@@ -9,6 +9,14 @@
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/app-touch-180.png">
+<script>
+/* محرك PDF (الجزء الثقيل، 230 ك.ب) يبدأ تحميله فورًا، بالتوازي مع باقي الصفحة، بدل أن ينتظر مكتبة pdf.js.
+   الدرس يُفتح أسرع بنصف ثانية تقريبًا. إن فشل هذا يعود العارض إلى الطريقة العادية */
+(function(){var E=window.PDFE={};
+ try{var w=new Worker(URL.createObjectURL(new Blob(['importScripts("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js");'],{type:"text/javascript"})));
+  w.addEventListener("error",function(ev){if(ev.preventDefault)ev.preventDefault();E.bad=true;if(E.onbad)E.onbad()});E.w=w}catch(e){}
+})();
+</script>
 <link rel="preload" href="fonts/plex-ar-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=7">
@@ -83,7 +91,14 @@ if(!window.pdfjsLib){fail("تعذّر تشغيل عارض الدروس. يمكن
 pdfjsLib.GlobalWorkerOptions.workerSrc=CDN+"pdf.worker.min.js";
 var ZOOMS=[1,1.5,2],zi=0,doc=null,slots=[],DPR=Math.min(window.devicePixelRatio||1,2);
 
-pdfjsLib.getDocument({url:file,disableRange:true,disableStream:true,cMapUrl:CDN+"cmaps/",cMapPacked:true,standardFontDataUrl:CDN+"standard_fonts/"}).promise.then(function(d){
+/* المحرك الذي بدأ تحميله في أعلى الصفحة؛ وإن تعذّر: المحرك العادي من pdf.js */
+var E=window.PDFE||{};
+function openDoc(port){pdfjsLib.GlobalWorkerOptions.workerPort=port||null;
+ var p=pdfjsLib.getDocument({url:file,disableRange:true,disableStream:true,cMapUrl:CDN+"cmaps/",cMapPacked:true,standardFontDataUrl:CDN+"standard_fonts/"}).promise;
+ if(!port)return p;
+ return Promise.race([p,new Promise(function(_,no){E.onbad=function(){no(new Error("worker"))};if(E.bad)E.onbad()})])}
+(E.w&&!E.bad?openDoc(E.w):Promise.reject(new Error("worker"))).catch(function(err){if(!err||err.message!=="worker")throw err;
+ try{if(E.w)E.w.terminate()}catch(e){}return openDoc(null)}).then(function(d){
  doc=d;var N=d.numPages;$("info").textContent=N===1?"صفحة واحدة":N===2?"صفحتان":N+(N<=10?" صفحات":" صفحة");
  var chain=Promise.resolve(),box=$("pages");
  for(var i=1;i<=d.numPages;i++)(function(n){chain=chain.then(function(){return d.getPage(n)}).then(function(page){
