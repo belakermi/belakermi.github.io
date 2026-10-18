@@ -49,7 +49,7 @@
   </header>
   <div class="strip6" aria-hidden="true"></div>
   <ol class="g">
-    <li><div class="gb"><h2>افتح فضاء الأساتذة</h2><p>من الرابط الذي وصلك من المدير، أو من أسفل الموقع «فضاء الأساتذة».</p><div class="url" id="url">belakermi.github.io/teacher.html</div></div></li>
+    <li><div class="gb"><h2>افتح فضاء الأساتذة</h2><p>من الرابط الذي وصلك من المدير، أو من أسفل الموقع «فضاء الأساتذة».</p><div class="url" id="url">aadl.tech/teacher.html</div></div></li>
     <li><div class="gb"><h2>اكتب رمزك الشخصي</h2><p>مرة واحدة فقط: اترك «تذكّرني» مفعّلًا.</p><div class="ui"><span class="k" style="direction:ltr;letter-spacing:.12em">ABCD-1234</span><span class="k">☑ تذكّرني</span><span class="b">دخول</span></div></div></li>
     <li><div class="gb"><h2>املأ الدرس</h2><p>النوع، السنة، المادة، العنوان، ثم أضف واحدًا أو أكثر:</p>
       <div class="ui"><span class="k">درس · تمارين · فرض · اختبار · BEM</span></div>
@@ -66,7 +66,7 @@
       <li>رمزك شخصي: لا تعطه لأحد. إذا ضاع هاتفك، اطلب رمزًا جديدًا من المدير.</li>
     </ul>
   </section>
-  <div class="gf"><span>موقع دروس المؤسسة</span><span id="site" style="direction:ltr;unicode-bidi:isolate">belakermi.github.io</span></div>
+  <div class="gf"><span>موقع دروس المؤسسة</span><span id="site" style="direction:ltr;unicode-bidi:isolate">aadl.tech</span></div>
 </div>
 <div class="actions-g">
   <a class="btn" href="teacher.html">افتح فضاء الأساتذة</a>
@@ -76,7 +76,7 @@
 (function(){
  document.getElementById("school").textContent=SITE.name+(SITE.place?" · "+SITE.place:"");
  var base=new URL("./",location.href);
- if(/github\.io$/.test(base.hostname)){var h=base.host+base.pathname.replace(/\/$/,"");document.getElementById("url").textContent=h+"/teacher.html";document.getElementById("site").textContent=h}
+ if(base.protocol==="https:"){var h=base.host+base.pathname.replace(/\/$/,"");document.getElementById("url").textContent=h+"/teacher.html";document.getElementById("site").textContent=h}
  if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(function(){});
 })();
 </script>

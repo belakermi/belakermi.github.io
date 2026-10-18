@@ -2,11 +2,11 @@
 
 موقع مجاني يجمع دروس الأساتذة لتلاميذ المتوسط، من الأولى إلى الرابعة، ومواضيع شهادة التعليم المتوسط.
 
-- **الموقع:** https://belakermi.github.io/
-- **فضاء الأساتذة:** https://belakermi.github.io/teacher.html
-- **دليل الأستاذ:** https://belakermi.github.io/guide.html (وصورة للإرسال: `img/guide-teachers.png`)
-- **مواضيع BEM:** https://belakermi.github.io/bem.html
-- **ملصق QR للأقسام:** https://belakermi.github.io/poster.html
+- **الموقع:** https://aadl.tech/
+- **فضاء الأساتذة:** https://aadl.tech/teacher.html
+- **دليل الأستاذ:** https://aadl.tech/guide.html (وصورة للإرسال: `img/guide-teachers.png`)
+- **مواضيع BEM:** https://aadl.tech/bem.html
+- **ملصق QR للأقسام:** https://aadl.tech/poster.html
 
 ## كيف يعمل
 
