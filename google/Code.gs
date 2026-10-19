@@ -1,4 +1,5 @@
 // خادم فضاء الأساتذة — متوسطة الشهيد بلعكرمي أعمر
+// الإصدار 6 (إشعارات على الهواتف بدون شركة خارجية، رسائل للأساتذة فقط)
 // الإصدار 5 (عدد المشاهدات والزيارات، قراءة الجدول حسب أسماء الأعمدة، منع التكرار، نسخة احتياطية)
 //
 // طريقة التركيب (مرة واحدة):
@@ -11,6 +12,8 @@
 // التحديث إلى إصدار جديد (الرابط لا يتغير):
 //   الصق الكود الجديد مكان القديم ← حفظ ← نشر ← إدارة عمليات النشر ← ✏️ ← الإصدار: إصدار جديد ← نشر
 //   (لا تختر «عملية نشر جديدة»: فهي تعطي رابطًا جديدًا)
+//   من الإصدار 5 إلى 6: بعد الحفظ اختر الدالة enablePush واضغط «تشغيل» مرة واحدة، واسمح بالإذن الجديد
+//   (الاتصال بخدمة خارجية: لإرسال الإشعارات إلى Google وApple)، ثم انشر إصدارًا جديدًا كما سبق
 //
 // البيانات تُحفظ في جدول Google باسم «دروس الموقع» في حسابك،
 // والملفات في مجلد «ملفات دروس الموقع» (مشارك للعرض فقط).
@@ -28,7 +31,7 @@ var EXCERPT = 220;           // طول مقتطف الشرح في قائمة ا�
 var CACHE_TTL = 21600;       // 6 ساعات (الحد الأقصى في Google)
 var CHUNK = 40000;           // حجم القطعة في الذاكرة المؤقتة (أقل من حد 100KB)
 var LOCK_WAIT = 30000;       // أقصى انتظار عند نشر عدة أساتذة في اللحظة نفسها
-var VERSION = 5;
+var VERSION = 6;
 var VIEW_SHARDS = 20;        // عدّادات المشاهدات المؤقتة (موزعة حتى لا تتزاحم)
 var VIEW_FLUSH = 600;        // تُنقل إلى الجدول مرة كل 10 دقائق على الأكثر
 
@@ -45,9 +48,14 @@ var SUBJECTS = ["ar", "math", "fr", "en", "sci", "phy", "hist", "isl", "civ", "a
 var TYPES = ["lesson", "ex", "devoir", "exam", "corr", "bem", "bemc"];  // درس، تمارين، فرض، اختبار، تصحيح، موضوع BEM، تصحيح BEM
 var L_HEAD = ["id", "date", "year", "subject", "term", "title", "text", "files", "videos", "teacher", "teacherId", "status", "updated", "type", "unit", "views"];
 var T_HEAD = ["id", "name", "subjects", "code", "role", "active"];
-var N_HEAD = ["id", "date", "title", "text", "until", "author", "status", "pinned"];
-var L_SHEET = "الدروس", T_SHEET = "الأساتذة", N_SHEET = "الإعلانات";
-var L_TEXT = ["title", "text", "unit"], T_TEXT = ["name", "code"], N_TEXT = ["title", "text", "until"];
+var N_HEAD = ["id", "date", "title", "text", "until", "author", "status", "pinned", "audience"];   // audience: فارغ = الجميع، teachers = الأساتذة فقط
+var S_HEAD = ["id", "endpoint", "kind", "teacherId", "created", "fails"];   // الهواتف المشتركة في الإشعارات (بدون أسماء)
+var L_SHEET = "الدروس", T_SHEET = "الأساتذة", N_SHEET = "الإعلانات", S_SHEET = "الإشعارات";
+var L_TEXT = ["title", "text", "unit"], T_TEXT = ["name", "code"], N_TEXT = ["title", "text", "until"], S_TEXT = ["id", "endpoint"];
+var MAX_SUBS = 5000;          // أقصى عدد هواتف مشتركة (حد Google: 20000 اتصال خارجي في اليوم)
+var PUSH_TTL = 172800;        // هاتف مغلق يستلم الإشعار إذا اشتغل خلال يومين
+var PUSH_CONTACT = "https://aadl.tech";   // يُرسل مع كل إشعار (معيار VAPID) ليعرف مزوّد الإشعارات صاحب الإرسال
+var PUSH_HOSTS = /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)$/;
 
 // ---------------- الإعداد ----------------
 
@@ -59,11 +67,11 @@ function setup() {
 
   var lsh = ss.getSheetByName(L_SHEET) || ss.insertSheet(L_SHEET);
   var tsh = ss.getSheetByName(T_SHEET) || ss.insertSheet(T_SHEET);
-  var nsh = ss.getSheetByName(N_SHEET) || ss.insertSheet(N_SHEET);
-  headers_(lsh, L_HEAD, L_TEXT); headers_(tsh, T_HEAD, T_TEXT); headers_(nsh, N_HEAD, N_TEXT);
+  var nsh = ss.getSheetByName(N_SHEET) || ss.insertSheet(N_SHEET), ssh = ss.getSheetByName(S_SHEET) || ss.insertSheet(S_SHEET);
+  headers_(lsh, L_HEAD, L_TEXT); headers_(tsh, T_HEAD, T_TEXT); headers_(nsh, N_HEAD, N_TEXT); headers_(ssh, S_HEAD, S_TEXT);
   ss.getSheets().forEach(function (s) {
     var n = s.getName();
-    if (n !== L_SHEET && n !== T_SHEET && n !== N_SHEET && s.getLastRow() === 0 && ss.getSheets().length > 3) ss.deleteSheet(s);
+    if (n !== L_SHEET && n !== T_SHEET && n !== N_SHEET && n !== S_SHEET && s.getLastRow() === 0 && ss.getSheets().length > 4) ss.deleteSheet(s);
   });
 
   var folderId = p.getProperty("FOLDER"), folder = null;
@@ -80,6 +88,7 @@ function setup() {
     insert_(tt, admin);
   }
   snapshot_(rebuild_());
+  try { vapid_(true); } catch (e) {}
   Logger.log("✅ تم الإعداد.");
   Logger.log("🔑 رمز المدير: " + admin.code);
   Logger.log("📄 جدول البيانات: " + ss.getUrl());
@@ -119,10 +128,13 @@ function doGet(e) {
       // vn: رقم يرسله الهاتف ويعود كما هو، فلا يظن الهاتف أن ردًا قديمًا محفوظًا أكّد وصول مشاهداته
       var vs = { seen: 0, visit: 0 }, vn = String(p.vn || "").replace(/[^a-z0-9]/g, "").slice(0, 12);
       if (p.seen || p.visit) { try { vs = views_(String(p.seen || ""), p.visit === "1"); } catch (e) {} }
-      if (p.api === "lessons") { var pub = publicList_(); return json_({ ok: true, v: VERSION, lessons: pub.list, news: pub.news, seen: vs.seen, visit: vs.visit, vn: vn }); }
+      if (p.api === "lessons") { var pub = publicList_(), pk = null; try { pk = vapid_(false); } catch (e) {}
+        return json_({ ok: true, v: VERSION, lessons: pub.list, news: pub.news, push: pk ? pk.pub : "", seen: vs.seen, visit: vs.visit, vn: vn }); }
       var l = publicLesson_(String(p.id || ""));
       return json_(l ? { ok: true, v: VERSION, lesson: l, seen: vs.seen, visit: vs.visit, vn: vn } : { ok: false, v: VERSION, error: "NOT_FOUND", seen: vs.seen, visit: vs.visit, vn: vn });
     }
+    // الهاتف استيقظ بإشعار: ما نص الرسالة؟ (s = رقم اشتراك الهاتف، يحدد هل هو هاتف أستاذ)
+    if (p.api === "pushmsg") return json_({ ok: true, v: VERSION, msg: pushMsg_(String(p.s || "").slice(0, 40)) });
   } catch (err) { return json_({ ok: false, error: errCode_(err) }); }
   return HtmlService.createHtmlOutput('<p dir="rtl" style="font:16px sans-serif">خادم دروس ' + SCHOOL + ' يعمل ✓</p>');
 }
@@ -130,19 +142,27 @@ function doGet(e) {
 function doPost(e) {
   try {
     var req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    // الاشتراك في الإشعارات لا يحتاج رمزًا (التلاميذ والأولياء)؛ مع رمز أستاذ يصبح اشتراك أستاذ
+    if (req.action === "pushSub") { var sub = pushSub_(req); sub.ok = true; return json_(sub); }
+    if (req.action === "pushUnsub") { pushUnsub_(req); return json_({ ok: true }); }
     var who = auth_(req.code), out;
     switch (req.action) {
-      case "login": out = { name: who.name, role: who.role, subjects: who.subjects, v: VERSION }; break;
+      case "login": var lk = null; try { lk = vapid_(false); } catch (x) {} out = { name: who.name, role: who.role, subjects: who.subjects, v: VERSION, push: lk ? lk.pub : "" }; break;
+      case "teacherNews": out = { news: activeNews_("teachers") }; break;
+      case "pushTest": out = { push: pushSend_("all", "تجربة الإشعارات ✓", "الإشعارات تعمل على هذا الهاتف.", String(req.s || "")) }; break;
       case "upload": out = { file: upload_(who, req.file) }; break;
       case "save": out = save_(who, req.lesson); break;   // { id } أو { id, dup: true } إذا وصلت المحاولة نفسها مرة ثانية
       case "mine": out = { lessons: mine_(who) }; break;
       case "delete": del_(who, req.id); out = {}; break;
-      case "teachers": admin_(who); out = { teachers: teachers_().map(publicTeacher_), storage: storage_(), visits: visits_() }; break;
+      case "teachers": admin_(who); out = { teachers: teachers_().map(publicTeacher_), storage: storage_(), visits: visits_(), push: pushCounts_() }; break;
       case "addTeacher": admin_(who); out = { teacher: publicTeacher_(addTeacher_(req.name, req.subjects)) }; break;
       case "removeTeacher": admin_(who); removeTeacher_(req.id); out = {}; break;
       case "resetCode": admin_(who); out = { code: resetCode_(req.id) }; break;
       case "news": admin_(who); out = { news: newsAll_() }; break;
-      case "newsSave": admin_(who); out = { id: newsSave_(who, req.item) }; break;
+      case "newsSave": admin_(who); out = { id: newsSave_(who, req.item) };
+        // الإعلان يُحفظ أولًا؛ إن تعذّر الإشعار يبقى الإعلان منشورًا ويُخبَر المدير بالسبب
+        if (req.item && req.item.push === true) { try { out.push = pushSend_(req.item.audience, req.item.title, req.item.text); } catch (x) { out.pushError = errCode_(x); } }
+        break;
       case "newsDelete": admin_(who); newsDelete_(req.id); out = {}; break;
       case "refresh": admin_(who); out = refresh_(); break;
       case "backup": admin_(who); out = { url: backup() }; break;
@@ -253,6 +273,7 @@ function removeTeacher_(id) {
     if (!t) throw new Error("NOT_FOUND");
     if (t.role === "admin") throw new Error("FORBIDDEN");
     setCell_(tt, t._r, "active", false);
+    try { pushDropTeacher_(t.id); } catch (e) {}
   } finally { lock.releaseLock(); }
 }
 
@@ -527,22 +548,23 @@ function newsSheet_() {
 function newsOf_(r) {
   return { id: String(r.id), ts: Number(r.date) || 0, date: day_(r.date), title: String(r.title), text: String(r.text || ""),
            until: dayOrEmpty_(r.until), author: String(r.author || ""), status: String(r.status),
-           pinned: r.pinned === true || String(r.pinned).toUpperCase() === "TRUE", _r: r };
+           pinned: r.pinned === true || String(r.pinned).toUpperCase() === "TRUE", audience: String(r.audience || "") === "teachers" ? "teachers" : "", _r: r };
 }
 function newsRows_(t) { return (t || table_(newsSheet_(), N_HEAD)).rows.map(newsOf_); }
-function newsView_(n) { return { id: n.id, date: n.date, title: n.title, text: n.text, until: n.until, pinned: n.pinned }; }
+function newsView_(n) { return { id: n.id, date: n.date, title: n.title, text: n.text, until: n.until, pinned: n.pinned, audience: n.audience }; }
 function newsAll_() {
   return newsRows_().filter(function (n) { return n.status === "published"; })
     .sort(function (a, b) { return (b.pinned - a.pinned) || (b.ts - a.ts); }).map(newsView_);
 }
-function activeNews_() {
+// الإعلانات الظاهرة: للموقع العام (بدون رسائل الأساتذة)، أو للأساتذة فقط داخل فضائهم
+function activeNews_(aud) {
   var today = day_(Date.now());
-  return newsAll_().filter(function (n) { return !n.until || n.until >= today; }).slice(0, 10);
+  return newsAll_().filter(function (n) { return (!n.until || n.until >= today) && (aud === "teachers" ? n.audience === "teachers" : n.audience !== "teachers"); }).slice(0, 10);
 }
 function newsSave_(who, it) {
   if (!it) throw new Error("BAD_INPUT");
   var title = clean_(it.title, 120), text = String(it.text || "").replace(/\r\n/g, "\n").slice(0, 2000).trim();
-  var until = /^\d{4}-\d{2}-\d{2}$/.test(String(it.until || "")) ? String(it.until) : "", pinned = it.pinned === true;
+  var until = /^\d{4}-\d{2}-\d{2}$/.test(String(it.until || "")) ? String(it.until) : "", pinned = it.pinned === true, audience = it.audience === "teachers" ? "teachers" : "";
   if (!title) throw new Error("BAD_INPUT");
   var id, built;
   var lock = lock_();
@@ -552,11 +574,11 @@ function newsSave_(who, it) {
     if (it.id) {
       var old = newsRows_(t).filter(function (n) { return n.id === String(it.id) && n.status === "published"; })[0];
       if (!old) throw new Error("NOT_FOUND");
-      update_(t, old._r, { title: title, text: text, until: until, status: "published", pinned: pinned });
+      update_(t, old._r, { title: title, text: text, until: until, status: "published", pinned: pinned, audience: audience });
       id = old.id;
     } else {
       id = newId_();
-      insert_(t, { id: id, date: now, title: title, text: text, until: until, author: who.name, status: "published", pinned: pinned });
+      insert_(t, { id: id, date: now, title: title, text: text, until: until, author: who.name, status: "published", pinned: pinned, audience: audience });
     }
     built = rebuild_({ freshNews: true });
   } finally { lock.releaseLock(); }
@@ -695,6 +717,265 @@ function cacheGet_(key) {
   var got = c.getAll(keys), s = "";
   for (var k = 0; k < keys.length; k++) { if (got[keys[k]] == null) return null; s += got[keys[k]]; }
   return s;
+}
+
+// ---------------- الإشعارات على الهواتف (بدون شركة خارجية) ----------------
+// الهاتف يشترك من الموقع، ونحفظ «عنوان الإشعار» الذي يعطيه له المتصفح (رابط عند Google أو Apple أو Mozilla)
+// في ورقة «الإشعارات». لا نحفظ أي اسم ولا رقم هاتف. عند الإرسال نرسل لكل عنوان إشارة فارغة موقّعة،
+// فيستيقظ الهاتف ويسأل الخادم عن نص الإشعار (pushmsg) ثم يعرضه.
+
+// مفاتيح VAPID: تُنشأ مرة واحدة. المفتاح الخاص في خصائص المشروع فقط، والعام يُرسل للهواتف
+function vapid_(create) {
+  var c = CacheService.getScriptCache(), cached = c.get("vapid:pub");
+  if (cached && cached !== "-" && !create) return { pub: cached };
+  if (cached === "-" && !create) return null;
+  var p = PropertiesService.getScriptProperties(), d = p.getProperty("VAPID_D"), pub = p.getProperty("VAPID_PUB");
+  if ((!d || !pub) && create) {
+    var lock = lock_();
+    try {
+      d = p.getProperty("VAPID_D"); pub = p.getProperty("VAPID_PUB");
+      if (!d || !pub) { var k = ecKeygen_(); d = k.d; pub = k.pub; p.setProperty("VAPID_D", d); p.setProperty("VAPID_PUB", pub); }
+    } finally { lock.releaseLock(); }
+  }
+  c.put("vapid:pub", pub || "-", pub ? CACHE_TTL : 600);
+  return pub ? { pub: pub, d: d } : null;
+}
+
+// شغّلها مرة واحدة من المحرر بعد التحديث إلى الإصدار 6، واسمح بالإذن الجديد «الاتصال بخدمة خارجية»
+function enablePush() {
+  vapid_(true);
+  subsSheet_();
+  UrlFetchApp.fetch("https://fcm.googleapis.com/", { muteHttpExceptions: true });
+  Logger.log("✅ الإشعارات جاهزة. من الموقع: فعّل الإشعارات في هاتفك، ثم انشر إعلانًا واختر «أرسل إشعارًا».");
+}
+
+function subsSheet_() {
+  var id = PropertiesService.getScriptProperties().getProperty("SS");
+  if (!id) throw new Error("NOT_SETUP");
+  var ss = SpreadsheetApp.openById(id), sh = ss.getSheetByName(S_SHEET);
+  if (!sh) { sh = ss.insertSheet(S_SHEET); headers_(sh, S_HEAD, S_TEXT); }
+  return sh;
+}
+function subOf_(r) {
+  return { id: String(r.id), endpoint: String(r.endpoint || ""), kind: String(r.kind) === "teacher" ? "teacher" : "pupil",
+           teacherId: String(r.teacherId || ""), fails: Number(r.fails) || 0, _r: r };
+}
+function subs_(t) { return (t || table_(subsSheet_(), S_HEAD)).rows.map(subOf_).filter(function (s) { return s.endpoint; }); }
+function pushHost_(url) { var m = /^https:\/\/([^\/:?#@]+)(\/|$)/i.exec(String(url || "")); return m ? m[1].toLowerCase() : ""; }
+function subGone_(t, s) { update_(t, s._r, { id: "", endpoint: "", kind: "", teacherId: "", created: "", fails: "" }); }
+
+// قائمة أرقام اشتراكات الأساتذة (صغيرة)، في الذاكرة المؤقتة وخصائص المشروع: لا نقرأ الجدول عند كل إشعار
+function tsubs_() {
+  var c = CacheService.getScriptCache(), v = c.get("tsubs");
+  if (v === null) { v = PropertiesService.getScriptProperties().getProperty("TSUBS") || "[]"; c.put("tsubs", v, CACHE_TTL); }
+  try { return JSON.parse(v); } catch (e) { return []; }
+}
+function tsubsSave_(all) {
+  var v = JSON.stringify(all.filter(function (s) { return s.kind === "teacher"; }).map(function (s) { return s.id; }));
+  PropertiesService.getScriptProperties().setProperty("TSUBS", v); CacheService.getScriptCache().put("tsubs", v, CACHE_TTL);
+}
+
+// اشتراك هاتف (بدون رمز = تلميذ أو ولي؛ مع رمز أستاذ = أستاذ). الهاتف نفسه لا يُسجَّل مرتين
+function pushSub_(req) {
+  var endpoint = String(req.endpoint || "").trim();
+  if (endpoint.length > 1000 || !PUSH_HOSTS.test(pushHost_(endpoint))) throw new Error("BAD_INPUT");
+  var who = req.code ? auth_(req.code) : null, out;
+  var lock = lock_();
+  try {
+    var t = table_(subsSheet_(), S_HEAD), all = subs_(t);
+    var old = all.filter(function (s) { return s.endpoint === endpoint; })[0];
+    if (!old && /^[A-Za-z0-9_-]{16,40}$/.test(String(req.id || ""))) old = all.filter(function (s) { return s.id === String(req.id); })[0];   // عنوان جديد للهاتف نفسه
+    var kind = who ? "teacher" : (old ? old.kind : "pupil"), tid = who ? who.id : (old ? old.teacherId : "");
+    if (old) {
+      update_(t, old._r, { endpoint: endpoint, kind: kind, teacherId: tid, fails: 0 });
+      old.endpoint = endpoint; old.kind = kind; out = { id: old.id, kind: kind };
+    } else {
+      if (all.length >= MAX_SUBS) throw new Error("FULL");
+      var id = b64u_(rand32_()).slice(0, 24);
+      insert_(t, { id: id, endpoint: endpoint, kind: kind, teacherId: tid, created: Date.now(), fails: 0 });
+      all.push({ id: id, kind: kind }); out = { id: id, kind: kind };
+    }
+    tsubsSave_(all);
+  } finally { lock.releaseLock(); }
+  return out;
+}
+function pushUnsub_(req) {
+  var id = String(req.id || "");
+  if (!/^[A-Za-z0-9_-]{16,40}$/.test(id)) return;
+  var lock = lock_();
+  try {
+    var t = table_(subsSheet_(), S_HEAD), all = subs_(t), s = all.filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    subGone_(t, s);
+    tsubsSave_(all.filter(function (x) { return x.id !== id; }));
+  } finally { lock.releaseLock(); }
+}
+// أستاذ أُوقف: هاتفه لا يستقبل رسائل الأساتذة بعد الآن
+function pushDropTeacher_(teacherId) {
+  var t = table_(subsSheet_(), S_HEAD), all = subs_(t), mine = all.filter(function (s) { return s.teacherId === teacherId; });
+  mine.forEach(function (s) { subGone_(t, s); });
+  if (mine.length) tsubsSave_(all.filter(function (s) { return s.teacherId !== teacherId; }));
+}
+
+// آخر رسالة لكل جمهور (الكل / الأساتذة)، وما يطلبه الهاتف عند وصول الإشارة
+function pushLast_(aud) {
+  var c = CacheService.getScriptCache(), k = "push:" + aud, v = c.get(k);
+  if (v === null) { v = PropertiesService.getScriptProperties().getProperty("PUSH_" + aud) || ""; c.put(k, v, CACHE_TTL); }
+  try { return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+function pushMsg_(s) {
+  var best = pushLast_("all"), test = s ? CacheService.getScriptCache().get("push:test:" + s) : null;
+  function newer(m) { if (m && (!best || m.at > best.at)) best = m; }
+  if (s && tsubs_().indexOf(s) >= 0) newer(pushLast_("teachers"));
+  if (test) { try { newer(JSON.parse(test)); } catch (e) {} }
+  return best;
+}
+
+// الإرسال: إشارة فارغة موقّعة لكل هاتف مشترك من الجمهور المختار
+function pushSend_(audience, title, text, onlyId) {
+  audience = audience === "teachers" ? "teachers" : "all";
+  var key = vapid_(true);
+  var m = { id: newId_(), title: clean_(title, 120), text: clean_(text, 300), url: audience === "teachers" ? "teacher.html" : "./", at: Date.now() };
+  var t = table_(subsSheet_(), S_HEAD), list = subs_(t).filter(function (s) {
+    return onlyId ? s.id === onlyId : (audience === "all" || s.kind === "teacher");
+  });
+  if (onlyId) { if (!list.length) throw new Error("NOT_FOUND"); CacheService.getScriptCache().put("push:test:" + onlyId, JSON.stringify(m), 600); }
+  else {
+    var v = JSON.stringify(m);
+    PropertiesService.getScriptProperties().setProperty("PUSH_" + audience, v); CacheService.getScriptCache().put("push:" + audience, v, CACHE_TTL);
+  }
+  var jwts = {}, reqs = list.map(function (s) {
+    var aud = "https://" + pushHost_(s.endpoint);
+    if (!jwts[aud]) jwts[aud] = vapidJwt_(aud, key);
+    return { url: s.endpoint, method: "post", headers: { Authorization: "vapid t=" + jwts[aud] + ", k=" + key.pub, TTL: String(PUSH_TTL), Urgency: "high" },
+             muteHttpExceptions: true, followRedirects: false };
+  });
+  var codes = [];
+  for (var i = 0; i < reqs.length; i += 100) {
+    var part = reqs.slice(i, i + 100), res;
+    try { res = UrlFetchApp.fetchAll(part).map(function (r) { return r.getResponseCode(); }); }
+    catch (e) {
+      if (/permission|authori|إذن|صلاحي/i.test(String(e && e.message))) throw new Error("PUSH_AUTH");
+      res = part.map(function (q) { try { return UrlFetchApp.fetch(q.url, q).getResponseCode(); } catch (x) { return 0; } });
+    }
+    codes = codes.concat(res);
+  }
+  var sent = 0, removed = 0, failed = 0, changed = [];
+  list.forEach(function (s, i) {
+    var code = codes[i];
+    if (code >= 200 && code < 300) { sent++; if (s.fails) changed.push([s, { fails: 0 }]); }
+    else if (code === 404 || code === 410) { removed++; changed.push([s, null]); }
+    else { failed++; changed.push(s.fails + 1 >= 5 ? [s, null] : [s, { fails: s.fails + 1 }]); }
+  });
+  if (changed.length) {
+    var lock = lock_();
+    try {
+      var t2 = table_(subsSheet_(), S_HEAD), now = subs_(t2), byId = {};
+      now.forEach(function (s) { byId[s.id] = s; });
+      changed.forEach(function (c) { var s = byId[c[0].id]; if (!s || s.endpoint !== c[0].endpoint) return; if (c[1]) update_(t2, s._r, c[1]); else { subGone_(t2, s); delete byId[s.id]; } });
+      tsubsSave_(Object.keys(byId).map(function (k) { return byId[k]; }));
+    } finally { lock.releaseLock(); }
+  }
+  return { total: list.length, sent: sent, removed: removed, failed: failed };
+}
+function pushCounts_() {
+  var all = [];
+  try { all = subs_(); } catch (e) {}
+  return { all: all.length, teachers: all.filter(function (s) { return s.kind === "teacher"; }).length, ready: !!vapid_(false) };
+}
+
+// ---------------- الإشعارات: التوقيع (ES256 على المنحنى P-256) ----------------
+// مزوّدو الإشعارات (Google وApple وMozilla) يطلبون توقيعًا من الخادم مع كل إشعار (معيار VAPID).
+// Google Apps Script لا يوفّر هذا التوقيع، فهو مكتوب هنا بالحساب على أعداد كبيرة (BigInt).
+// الأرقام تُنشأ بـ BigInt("…") وليس 0n، حتى لا يتعطل باقي الخادم في محرك قديم لا يعرف BigInt.
+
+var EC_ = null;
+function ec_() {
+  if (EC_) return EC_;
+  var B = BigInt;
+  EC_ = {
+    p: B("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
+    n: B("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"),
+    G: [B("0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"), B("0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"), B(1)],
+    b: B("0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b"),
+    Z: B(0), O: B(1), T: B(2), H: B(3), F: B(4), E: B(8)
+  };
+  return EC_;
+}
+function ecMod_(a, m) { var r = a % m; return r < ec_().Z ? r + m : r; }
+function ecInv_(a, m) {
+  var E = ec_(), lm = E.O, hm = E.Z, low = ecMod_(a, m), high = m;
+  while (low > E.O) { var q = high / low, nm = hm - lm * q, nw = high - low * q; hm = lm; lm = nm; high = low; low = nw; }
+  return ecMod_(lm, m);
+}
+// نقاط بإحداثيات «جاكوبي» [X, Y, Z]؛ Z = 0 هي «النقطة في اللانهاية»
+function ecDbl_(P) {
+  var E = ec_(), p = E.p, X = P[0], Y = P[1], Z = P[2];
+  if (Y === E.Z || Z === E.Z) return [E.O, E.O, E.Z];
+  var d = Z * Z % p, g = Y * Y % p, be = X * g % p;
+  var al = E.H * ecMod_(X - d, p) % p * ((X + d) % p) % p;
+  var X3 = ecMod_(al * al - E.E * be, p);
+  var Z3 = ecMod_((Y + Z) * (Y + Z) - g - d, p);
+  var Y3 = ecMod_(al * ecMod_(E.F * be - X3, p) - E.E * (g * g % p), p);
+  return [X3, Y3, Z3];
+}
+function ecAdd_(P, Q) {
+  var E = ec_(), p = E.p;
+  if (P[2] === E.Z) return Q;
+  if (Q[2] === E.Z) return P;
+  var z1 = P[2] * P[2] % p, z2 = Q[2] * Q[2] % p;
+  var U1 = P[0] * z2 % p, U2 = Q[0] * z1 % p, S1 = P[1] * z2 % p * Q[2] % p, S2 = Q[1] * z1 % p * P[2] % p;
+  if (U1 === U2) return S1 === S2 ? ecDbl_(P) : [E.O, E.O, E.Z];
+  var Hh = ecMod_(U2 - U1, p), R = ecMod_(S2 - S1, p), H2 = Hh * Hh % p, H3 = H2 * Hh % p, U1H2 = U1 * H2 % p;
+  var X3 = ecMod_(R * R - H3 - E.T * U1H2, p);
+  var Y3 = ecMod_(R * ecMod_(U1H2 - X3, p) - S1 * H3, p);
+  return [X3, Y3, Hh * P[2] % p * Q[2] % p];
+}
+function ecMul_(k, P) {
+  var E = ec_(), R = [E.O, E.O, E.Z], bits = k.toString(2);
+  for (var i = 0; i < bits.length; i++) { R = ecDbl_(R); if (bits.charAt(i) === "1") R = ecAdd_(R, P); }
+  return R;
+}
+function ecAffine_(P) { var E = ec_(), zi = ecInv_(P[2], E.p), zi2 = zi * zi % E.p; return [P[0] * zi2 % E.p, P[1] * zi2 % E.p * zi % E.p]; }
+
+// بايتات: Google يعطي بايتات بإشارة (‎-128..127)، والحساب هنا بـ 0..255
+function u8_(a) { var o = []; for (var i = 0; i < a.length; i++) o.push(a[i] & 255); return o; }
+function s8_(a) { var o = []; for (var i = 0; i < a.length; i++) o.push(a[i] > 127 ? a[i] - 256 : a[i]); return o; }
+function hexOf_(u) { var s = ""; for (var i = 0; i < u.length; i++) s += (u[i] < 16 ? "0" : "") + u[i].toString(16); return s; }
+function bigOf_(u) { return BigInt("0x" + (hexOf_(u) || "0")); }
+function bytesOf_(x, len) { var h = x.toString(16), o = []; while (h.length < len * 2) h = "0" + h; for (var i = 0; i < len * 2; i += 2) o.push(parseInt(h.substr(i, 2), 16)); return o; }
+function b64u_(u) { return Utilities.base64EncodeWebSafe(s8_(u)).replace(/=+$/, ""); }
+function unb64u_(s) { s = String(s || ""); while (s.length % 4) s += "="; return u8_(Utilities.base64DecodeWebSafe(s)); }
+function ascii_(s) { var o = []; for (var i = 0; i < s.length; i++) o.push(s.charCodeAt(i) & 255); return o; }
+function sha256_(u) { return u8_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s8_(u))); }
+function hmac256_(u, key) { return u8_(Utilities.computeHmacSha256Signature(s8_(u), s8_(key))); }
+function rand32_() { return sha256_(ascii_(Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid() + Date.now())); }
+
+// مفتاحان: خاص (يبقى في خصائص المشروع ولا يغادر الخادم) وعام (يرسله الموقع للهاتف عند الاشتراك)
+function ecKeygen_() {
+  var E = ec_(), d;
+  do { d = bigOf_(rand32_()) % E.n; } while (d === E.Z);
+  var Q = ecAffine_(ecMul_(d, E.G));
+  return { d: b64u_(bytesOf_(d, 32)), pub: b64u_([4].concat(bytesOf_(Q[0], 32), bytesOf_(Q[1], 32))) };
+}
+// توقيع ECDSA (r||s، 64 بايت) لرسالة بايتات؛ رقم k عشوائي جديد لكل توقيع
+function ecSign_(msg, dB64) {
+  var E = ec_(), dU = unb64u_(dB64), d = bigOf_(dU), h = sha256_(msg), e = bigOf_(h);
+  for (var i = 0; i < 16; i++) {
+    var k = bigOf_(hmac256_(h.concat(rand32_()), dU)) % E.n;
+    if (k === E.Z) continue;
+    var r = ecAffine_(ecMul_(k, E.G))[0] % E.n;
+    if (r === E.Z) continue;
+    var s = ecInv_(k, E.n) * ((e + r * d) % E.n) % E.n;
+    if (s === E.Z) continue;
+    return bytesOf_(r, 32).concat(bytesOf_(s, 32));
+  }
+  throw new Error("SIGN");
+}
+// رمز VAPID (JWT موقّع) لمزوّد إشعارات واحد، صالح 12 ساعة
+function vapidJwt_(aud, key) {
+  var input = b64u_(ascii_('{"typ":"JWT","alg":"ES256"}')) + "." + b64u_(ascii_(JSON.stringify({ aud: aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: PUSH_CONTACT })));
+  return input + "." + b64u_(ecSign_(ascii_(input), key.d));
 }
 
 // ---------------- أدوات ----------------

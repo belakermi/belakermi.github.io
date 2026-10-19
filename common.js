@@ -20,6 +20,11 @@ var D = (function () {
     EMPTY: "أضف شرحًا أو ملفًا أو رابط فيديو على الأقل.",
     BAD_INPUT: "تحقق من الحقول: السنة والمادة والعنوان مطلوبة.",
     NOT_FOUND: "هذا الدرس لم يعد موجودًا.",
+    DENIED: "الإشعارات ممنوعة لهذا الموقع في إعدادات المتصفح. افتح الإعدادات ← الموقع ← الإشعارات ← سماح.",
+    DISMISSED: "لم تُفعَّل الإشعارات. اضغط «فعّل» ثم «سماح».",
+    PUSH_FAIL: "تعذّر تفعيل الإشعارات في هذا المتصفح. جرّب Chrome، أو ثبّت الموقع على الشاشة الرئيسية.",
+    PUSH_AUTH: "الإعلان نُشر، لكن الإشعار لم يُرسل: شغّل الدالة enablePush مرة واحدة من محرر الخادم (من كمبيوتر) واسمح بالإذن.",
+    FULL: "عدد الهواتف المشتركة في الإشعارات بلغ الحد الأقصى.",
     NOT_SETUP: "الخادم لم يُجهَّز بعد. على المدير تشغيل setup مرة واحدة.",
     QUOTA: "بلغت حد الرفع لهذا اليوم (300 م.ب). أكمل غدًا، أو ضع الفيديوهات على YouTube بدل رفعها.",
     NETWORK: "تعذّر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.",
@@ -219,6 +224,7 @@ var D = (function () {
     return getJson("api=lessons", 3).then(function (j) {
       if (!j.ok) { var e = new Error(j.error || "SERVER"); e.code = j.error || "SERVER"; throw e; }
       lastNews = Array.isArray(j.news) ? j.news : null;
+      if (typeof j.push === "string") pushKey(j.push);
       try { localStorage.setItem(CK, JSON.stringify({ at: Date.now(), lessons: j.lessons, news: j.news || [], v: j.v || 1 })); } catch (e) {}
       return j.lessons;
     });
@@ -249,6 +255,62 @@ var D = (function () {
   }
   /* بداية السنة الدراسية الحالية (1 أوت): ما نُشر قبلها يذهب إلى «الأرشيف» */
   function yearStart() { var d = new Date(), y = d.getFullYear(); return (d.getMonth() + 1 >= 8 ? y : y - 1) + "-08-01"; }
+
+
+  /* ---- الإشعارات على الهاتف (خادم الإصدار 6، بدون شركة خارجية) ----
+     الهاتف يشترك بالمفتاح العام للخادم، ونحفظ رقم اشتراكه هنا وفي ذاكرة عامل الخدمة (ليعرف ماذا يسأل الخادم عند وصول إشعار) */
+  var PK = "doros-push-v1";
+  function pushGet() { try { return JSON.parse(localStorage.getItem(PK) || "{}") || {}; } catch (e) { return {}; } }
+  function pushPut(o) { try { localStorage.setItem(PK, JSON.stringify(o)); } catch (e) {} }
+  function pushKey(k) { var o = pushGet(); if (typeof k === "string" && o.key !== k) { o.key = k; pushPut(o); } return o.key || ""; }
+  function pushSupported() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && (location.protocol === "https:" || location.hostname === "localhost"); }
+  function pushErr(c) { var e = new Error(c); e.code = c; return e; }
+  function keyBytes(b64) { var s = String(b64).replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var r = atob(s), u = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) u[i] = r.charCodeAt(i); return u; }
+  function swPushInfo(o) {
+    if (!window.caches) return Promise.resolve();
+    return caches.open("dpush").then(function (c) { return o ? c.put("/__push", new Response(JSON.stringify(o), { headers: { "content-type": "application/json" } })) : c.delete("/__push"); }).catch(function () {});
+  }
+  function pushReg() { return navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; }); }
+  /* "on" | "off" | "denied" | "install" (آيفون: يجب تثبيت الموقع أولًا) | "unsupported" | "nokey" (الخادم قبل الإصدار 6) */
+  function pushStatus() {
+    if (!pushKey()) return Promise.resolve("nokey");
+    if (!pushSupported()) return Promise.resolve(isIOS() && !standalone() ? "install" : "unsupported");
+    if (Notification.permission === "denied") return Promise.resolve("denied");
+    return navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.pushManager.getSubscription() : null; })
+      .then(function (s) { return s && pushGet().id ? "on" : "off"; }, function () { return "off"; });
+  }
+  function askPermission() {
+    return new Promise(function (ok) { var r = Notification.requestPermission(ok); if (r && r.then) r.then(ok); });
+  }
+  /* code = رمز الأستاذ (اشتراك أستاذ)، أو لا شيء (تلميذ/ولي) */
+  function pushOn(code) {
+    var key = pushKey();
+    if (!key || !pushSupported()) return Promise.reject(pushErr("PUSH_FAIL"));
+    return askPermission().then(function (perm) {
+      if (perm !== "granted") throw pushErr(perm === "denied" ? "DENIED" : "DISMISSED");
+      return pushReg();
+    }).then(function (reg) {
+      var opts = { userVisibleOnly: true, applicationServerKey: keyBytes(key) };
+      return reg.pushManager.subscribe(opts).catch(function () {   /* اشتراك قديم بمفتاح آخر: نلغيه ونعيد */
+        return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; }).then(function () { return reg.pushManager.subscribe(opts); });
+      });
+    }).then(function (sub) {
+      var o = pushGet(), body = { action: "pushSub", endpoint: sub.endpoint, id: o.id || "" };
+      if (code) body.code = code;
+      return call(body).then(function (j) {
+        o = pushGet(); o.id = j.id; o.kind = j.kind; pushPut(o);
+        return swPushInfo({ s: j.id, api: SITE.apiUrl, key: key }).then(function () { return j; });
+      });
+    }, function (e) { throw e && e.code ? e : pushErr("PUSH_FAIL"); });
+  }
+  function pushOff() {
+    var o = pushGet();
+    return (pushSupported() ? navigator.serviceWorker.getRegistration() : Promise.resolve(null))
+      .then(function (r) { return r ? r.pushManager.getSubscription() : null; }).then(function (s) { return s ? s.unsubscribe() : null; }).catch(function () {})
+      .then(function () { return o.id ? call({ action: "pushUnsub", id: o.id }).catch(function () {}) : null; })
+      .then(function () { o = pushGet(); delete o.id; delete o.kind; pushPut(o); return swPushInfo(null); });
+  }
+  function pushInfo() { return pushGet(); }
 
   /* تطبيق قابل للتثبيت: تسجيل عامل الخدمة (يحفظ الصفحات والدروس للعمل بدون إنترنت) */
   var installEvt = null, installCbs = [];
@@ -281,5 +343,6 @@ var D = (function () {
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
     inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, saved:saved, isSaved:isSaved, toggleSaved:toggleSaved, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
-    canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS };
+    canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS,
+    pushKey:pushKey, pushStatus:pushStatus, pushOn:pushOn, pushOff:pushOff, pushInfo:pushInfo, pushSupported:pushSupported };
 })();

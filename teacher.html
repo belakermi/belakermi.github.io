@@ -16,9 +16,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 <script src="config.js"></script>
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 <script src="imgpdf.js?v=4"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -30,6 +30,15 @@
   .check{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
   .who{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .who b{font-family:var(--display);font-size:1.25rem}
+  .tnews summary{cursor:pointer;font-weight:600}
+  .tnews .tn{border-top:1px solid var(--line);padding-top:8px;margin-top:8px;display:flex;flex-direction:column;gap:2px}
+  .tnews .tn p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
+  .tnews .tn small{color:var(--muted);font-size:.8rem}
+  .tpush{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;font-size:.9rem;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}
+  .tpush .tpb{display:flex;gap:6px;flex-wrap:wrap}
+  .tpush .okt{flex-basis:100%;color:var(--ok)}
+  .tpush .errt{flex-basis:100%;color:var(--danger)}
+  .pill.aud{background:var(--gold);color:#3A2A00;font-size:.72rem}
   .who .role{font-size:.78rem;background:var(--gold);color:#3A2A00;border-radius:999px;padding:1px 10px;margin-inline-start:6px;font-weight:600}
   .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   @media (max-width:560px){.grid2{grid-template-columns:minmax(0,1fr)}}
@@ -119,7 +128,8 @@ function blankForm(){var s=(S.me&&S.me.subjects||"").split(",")[0]||"",last=ls(l
  return f}
 function v3(){return S.me&&S.me.v>=3}
 function v4(){return S.me&&S.me.v>=4}
-var LATEST=5;
+var LATEST=6;
+function v6(){return S.me&&S.me.v>=6}
 function isBem(t){return t==="bem"||t==="bemc"}
 function msg(t,ok){S.msg={t:t,ok:!!ok}}
 var HEIC_TIP="صور HEIC (من بعض الهواتف) لا يقرؤها المتصفح: في إعدادات الكاميرا اختر «JPG» (في آيفون: «الأكثر توافقًا»)، أو التقط لقطة شاشة للصورة وأرسلها.";
@@ -146,16 +156,40 @@ function render(){
  if(S.tab==="new"&&!S.done)ensureForm();
  var o='<div class="who"><div>مرحبًا، <b>'+esc(S.me.name)+'</b>'+(S.me.role==="admin"&&S.me.name.indexOf("مدير")<0?'<span class="role">المدير</span>':'')+'</div><button class="btn quiet sm" data-a="logout">خروج</button></div>';
  var sv=S.me.v||1;
- /* مع خدمة الإحصائيات تعمل المشاهدات بدون الإصدار 5، فيكفي الإصدار 4 */
- var need=D.statsOn()?4:LATEST,feat=[];
+ /* مع خدمة الإحصائيات تعمل المشاهدات بدون الإصدار 5 */
+ var need=LATEST,feat=[];
  if(sv<3)feat.push("نوع المحتوى، المقطع، مواضيع BEM، الإعلانات");if(sv<4)feat.push("منع تكرار النشر عند انقطاع الإنترنت، تحمّل الزحام، النسخة الاحتياطية، زر «تحديث الموقع»");if(!D.statsOn()&&sv<5)feat.push("عدد مشاهدات الدروس وعدد زوار الموقع");
+ if(sv<6)feat.push("الإشعارات على هواتف التلاميذ والأساتذة، ورسائل للأساتذة فقط");
  if(S.me.role==="admin"&&sv<need)o+='<div class="upd">الخادم على الإصدار '+sv+'. حدّث كود الخادم إلى <b>الإصدار '+LATEST+'</b> لتفعيل: '+feat.join("، ")+'. <a href="setup.html">طريقة التحديث</a></div>';
+ if(v6())o+='<div id="tnews"></div><div id="tpush"></div>';
  o+='<nav class="tabs" role="tablist">'+tab("new",S.form&&S.form.id?"تعديل درس":"درس جديد")+tab("mine",S.me.role==="admin"?"كل الدروس":"دروسي")+(S.me.role==="admin"?tab("news","الإعلانات")+tab("team","الأساتذة"):"")+'</nav>';
  if(S.msg)o+='<div class="'+(S.msg.ok?"ok-msg":"msg")+'" role="status">'+esc(S.msg.t)+'</div>';
  o+='<section id="pane"></section>';
  app.innerHTML=o;
  if(S.tab==="new")renderForm();else if(S.tab==="mine")renderMine();else if(S.tab==="news")renderNewsAdmin();else renderTeam();
+ if(v6()){drawTnews();drawTpush()}
 }
+/* ---- رسائل الإدارة للأساتذة فقط (خادم الإصدار 6) ---- */
+var TN={list:null,loading:false};
+function seenTn(){return ls("doros-tnews-seen")||[]}
+function loadTnews(){if(TN.loading||!v6())return;TN.loading=true;
+ D.call({action:"teacherNews",code:S.code}).then(function(j){TN.loading=false;TN.list=j.news||[];drawTnews()},function(){TN.loading=false})}
+function drawTnews(){var el=$("tnews");if(!el)return;var L=TN.list||[];if(!L.length){el.innerHTML="";return}
+ var seen=seenTn(),fresh=L.filter(function(n){return seen.indexOf(n.id)<0});
+ el.innerHTML='<details class="card tnews"'+(fresh.length?" open":"")+'><summary>📢 رسائل الإدارة للأساتذة'+(fresh.length?' <span class="pill new">'+fresh.length+' جديدة</span>':' ('+L.length+')')+'</summary>'
+  +L.map(function(n){return'<div class="tn"><b dir="auto">'+(n.pinned?"📌 ":"")+esc(n.title)+(seen.indexOf(n.id)<0?' <span class="pill new">جديد</span>':'')+'</b>'+(n.text?'<p dir="auto">'+esc(n.text)+'</p>':'')+'<small>'+D.fmt(n.date)+'</small></div>'}).join("")+'</details>';
+ if(fresh.length)setTimeout(function(){var s2=seenTn();L.forEach(function(n){if(s2.indexOf(n.id)<0)s2.push(n.id)});ls("doros-tnews-seen",s2.slice(-200))},3000)}
+/* ---- إشعارات هذا الهاتف (للأستاذ) ---- */
+var TP={busy:false,out:"",err:""};
+function drawTpush(){var el=$("tpush");if(!el)return;
+ D.pushStatus().then(function(st){if(!$("tpush"))return;
+  if(st==="nokey"||st==="unsupported"){el.innerHTML="";return}
+  var info=D.pushInfo(),t,b="";
+  if(st==="on"&&info.kind==="teacher"){t="🔔 إشعارات الأساتذة مفعّلة على هذا الهاتف ✓";b='<button class="btn quiet sm" data-a="pTest"'+(TP.busy?" disabled":"")+'>تجربة</button><button class="btn quiet sm" data-a="pOff"'+(TP.busy?" disabled":"")+'>إيقاف</button>'}
+  else if(st==="install")t="🔔 لتصلك الإشعارات في آيفون: ثبّت الموقع على الشاشة الرئيسية (زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية») وافتحه من هناك.";
+  else if(st==="denied")t="🔔 "+D.errText({code:"DENIED"});
+  else{t="🔔 فعّل الإشعارات على هذا الهاتف لتصلك رسائل الإدارة وإعلانات المؤسسة.";b='<button class="btn sm" data-a="pOn"'+(TP.busy?" disabled":"")+'>'+(TP.busy?"جاري…":"فعّل")+'</button>'}
+  el.innerHTML='<div class="tpush"><span>'+esc(t)+'</span><span class="tpb">'+b+'</span>'+(TP.out?'<small class="okt">'+esc(TP.out)+'</small>':'')+(TP.err?'<small class="errt">'+esc(TP.err)+'</small>':'')+'</div>'})}
 function tab(k,t){return'<button role="tab" data-a="tab" data-k="'+k+'" aria-selected="'+(S.tab===k)+'">'+t+'</button>'}
 
 function renderLogin(){
@@ -227,12 +261,12 @@ function loadMine(){if(S._loading)return;S._loading=true;S.mineErr=null;var g=G.
   function(e){if(g!==G.mine)return;S._loading=false;S.mineErr=D.errText(e);if(S.tab==="mine")renderMine()})}
 /* المدير: تحميل الأساتذة والإعلانات مسبقًا بعد الدخول، لتفتح التبويبات فورًا */
 function loadTeachers(){if(S._tload)return;S._tload=true;S.tErr=null;var g=G.team;
- D.call({action:"teachers",code:S.code}).then(function(j){if(g!==G.team)return;S._tload=false;S.teachers=j.teachers;S.storage=j.storage||null;S.visits=j.visits||null;if(S.tab==="team")renderTeam()},
+ D.call({action:"teachers",code:S.code}).then(function(j){if(g!==G.team)return;S._tload=false;S.teachers=j.teachers;S.storage=j.storage||null;S.visits=j.visits||null;S.pushCounts=j.push||null;if(S.tab==="team")renderTeam()},
   function(e){if(g!==G.team)return;S._tload=false;S.tErr=D.errText(e);if(S.tab==="team")renderTeam()})}
 function loadNews(){if(NW.loading||!v3())return;NW.loading=true;NW.err=null;var g=G.news;
  D.call({action:"news",code:S.code}).then(function(j){if(g!==G.news)return;NW.loading=false;NW.list=j.news;if(S.tab==="news")renderNewsAdmin()},
   function(e){if(g!==G.news)return;NW.loading=false;NW.err=D.errText(e);if(S.tab==="news")renderNewsAdmin()})}
-function prefetch(){if(!S.me)return;loadMine();if(S.me.role==="admin"){loadTeachers();loadNews()}}
+function prefetch(){if(!S.me)return;loadMine();loadTnews();if(S.me.role==="admin"){loadTeachers();loadNews()}}
 function waiting(t){return'<div class="skeleton"></div><p style="color:var(--muted);font-size:.88rem;margin:8px 0 0">'+t+'</p>'}
 function failed(t,a){return'<div class="msg" role="status" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>'+esc(t)+'</span><button class="btn sm" type="button" data-a="'+a+'">إعادة المحاولة</button></div>'}
 
@@ -275,7 +309,7 @@ function status(t){var s=$("status");if(s)s.textContent=t}
 /* ---------- actions ---------- */
 function login(code,keep){if(!code){msg("اكتب الرمز أولًا.");render();return}
  S.busy=true;S.msg=null;render();
- D.call({action:"login",code:code}).then(function(j){S.code=code;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};remember(code,keep);S.busy=false;S.form=null;S.restored=false;S.tab="new";S.msg=null;render();prefetch()},
+ D.call({action:"login",code:code}).then(function(j){S.code=code;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};if(typeof j.push==="string")D.pushKey(j.push);remember(code,keep);S.busy=false;S.form=null;S.restored=false;S.tab="new";S.msg=null;render();prefetch()},
   function(e){S.busy=false;S.code=code;if(e.code==="AUTH")forget();msg(D.errText(e));render()})}
 
 /* النشر: كل محاولة تحمل رقمًا (rid) فلا يُسجَّل الدرس مرتين إذا انقطع الاتصال وأُعيدت المحاولة.
@@ -365,16 +399,25 @@ function renderNewsAdmin(){var el=$("pane");
   +'<div class="field"><label for="ntext">التفاصيل (اختياري)</label><textarea id="ntext" maxlength="2000" style="min-height:90px" placeholder="مثال: تبدأ يوم الأحد 7 ديسمبر. الرزنامة معلقة في بهو المؤسسة.">'+esc(e.text)+'</textarea></div>'
   +'<div class="grid2"><div class="field"><label for="nuntil">يختفي بعد تاريخ (اختياري)</label><input id="nuntil" type="date" value="'+esc(e.until)+'" min="'+t+'"></div>'
   +'<label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="npin"'+(e.pinned?" checked":"")+'> تثبيت في الأعلى 📌</label></div>'
+  +(v6()?'<div class="grid2"><div class="field"><label for="naud">لمن؟</label><select id="naud"><option value="">الجميع (يظهر في الموقع)</option><option value="teachers"'+(e.audience==="teachers"?" selected":"")+'>الأساتذة فقط (في فضاء الأساتذة)</option></select></div>'
+   +'<label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="npush"> 🔔 أرسل إشعارًا إلى الهواتف</label></div>':'')
   +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn"'+(NW.busy?" disabled":"")+'>'+(e.id?"حفظ التعديل":"نشر الإعلان")+'</button>'+(e.id?'<button type="button" class="btn quiet" data-a="nCancel">إلغاء</button>':'')+'</div></form>';
  o+='<div class="card"><h3 style="font-size:1.1rem;margin-bottom:6px">الإعلانات المنشورة ('+NW.list.length+')</h3>'+(NW.list.length?NW.list.map(function(n){var gone=n.until&&n.until<t;
-  return'<div class="nrow"'+(gone?' style="opacity:.6"':'')+'><b dir="auto">'+(n.pinned?'📌 ':'')+esc(n.title)+'</b>'+(n.text?'<p dir="auto">'+esc(n.text)+'</p>':'')
+  return'<div class="nrow"'+(gone?' style="opacity:.6"':'')+'><b dir="auto">'+(n.pinned?'📌 ':'')+esc(n.title)+(n.audience==="teachers"?' <span class="pill aud">للأساتذة فقط</span>':'')+'</b>'+''+(n.text?'<p dir="auto">'+esc(n.text)+'</p>':'')
    +'<small style="color:var(--muted)">'+D.fmt(n.date)+(n.until?(gone?' · انتهى ':' · يظهر حتى ')+D.fmt(n.until):'')+'</small>'
    +'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn quiet sm" data-a="nEdit" data-id="'+esc(n.id)+'">تعديل</button>'
    +(NW.confirm===n.id?'<button class="btn danger sm" data-a="nDelYes" data-id="'+esc(n.id)+'">تأكيد الحذف</button><button class="btn quiet sm" data-a="nDelNo">إلغاء</button>':'<button class="btn quiet sm" data-a="nDel" data-id="'+esc(n.id)+'">حذف</button>')+'</div></div>'}).join(""):'<p style="color:var(--muted);margin:0">لا توجد إعلانات.</p>')+'</div>';
  el.innerHTML=o;
  $("nf").onsubmit=function(ev){ev.preventDefault();var title=$("ntitle").value.trim();if(!title){$("ntitle").focus();return}
-  NW.busy=true;D.call({action:"newsSave",code:S.code,item:{id:e.id||null,title:title,text:$("ntext").value,until:$("nuntil").value,pinned:$("npin").checked}})
-   .then(function(){D.invalidate();NW.busy=false;NW.edit=null;NW.list=null;fresh("news");loadNews();msg(e.id?"تم حفظ الإعلان.":"تم نشر الإعلان. يظهر في الصفحة الرئيسية خلال دقيقة.",true);render()},function(er){NW.busy=false;msg(D.errText(er));render()})}}
+  var aud=$("naud")?$("naud").value:"",push=!!($("npush")&&$("npush").checked);
+  if(push){var pc=S.pushCounts,n=pc?(aud==="teachers"?pc.teachers:pc.all):null;
+   if(!confirm((n==null?"سيصل إشعار إلى كل الهواتف المشتركة":"سيصل إشعار إلى "+n+" "+(n===1?"هاتف":n===2?"هاتفين":n<=10?"هواتف":"هاتفًا"))+(aud==="teachers"?" (الأساتذة فقط)":"")+". إرسال؟"))return}
+  NW.busy=true;D.call({action:"newsSave",code:S.code,item:{id:e.id||null,title:title,text:$("ntext").value,until:$("nuntil").value,pinned:$("npin").checked,audience:aud,push:push}})
+   .then(function(j){D.invalidate();NW.busy=false;NW.edit=null;NW.list=null;fresh("news");loadNews();if(aud==="teachers")loadTnews();
+    var t=e.id?"تم حفظ الإعلان.":(aud==="teachers"?"تم نشر الرسالة للأساتذة. تظهر في أعلى فضاء الأساتذة.":"تم نشر الإعلان. يظهر في الصفحة الرئيسية خلال دقيقة.");
+    if(j.push)t+=" 🔔 أُرسل الإشعار إلى "+j.push.sent+" من "+j.push.total+" هاتف"+(j.push.removed?" (وحُذف "+j.push.removed+" هاتف لم يعد مشتركًا)":"")+".";
+    if(j.pushError){msg(t+" لكن الإشعار لم يُرسل: "+D.errText({code:j.pushError}));render();return}
+    msg(t,true);render()},function(er){NW.busy=false;msg(D.errText(er));render()})}}
 
 /* ---- أدوات المدير (خادم الإصدار 4): مساحة Drive، تحديث الموقع، نسخة احتياطية ---- */
 var TL={busy:false,out:""};
@@ -389,6 +432,7 @@ function tools(){
   o+='<div><div style="font-size:.9rem;margin-bottom:6px">زوار الموقع</div>'+(S.gcTotal>=0?'<div class="vstats" style="grid-template-columns:minmax(0,1fr)"><div><b>'+S.gcTotal+'</b><span>منذ البداية</span></div></div>':S.gcTotal===-1?'<p class="hint" style="margin:0;color:var(--danger);font-size:.85rem">خدمة الإحصائيات لم تُفعَّل بعد: أنشئ حساب GoatCounter باسم '+esc(SITE.stats)+' وفعّل خيار عدّاد الزوار.</p>':'<p class="hint" style="margin:0;color:var(--muted);font-size:.85rem">جاري التحميل…</p>')
    +'<a class="btn ghost sm" style="margin-top:8px" href="'+esc(D.statsUrl())+'" target="_blank" rel="noopener">📊 لوحة الإحصائيات الكاملة ↗</a><p class="hint" style="margin:6px 0 0;color:var(--muted);font-size:.8rem">ادخل بحساب GoatCounter لترى الزوار يومًا بيوم، والدروس الأكثر زيارة، ونوع الهواتف.</p></div>'}
  else if((S.me.v||1)<5)o+='<p class="hint" style="margin:0;color:var(--muted);font-size:.85rem">عدد زوار الموقع ومشاهدات الدروس يظهران بعد تحديث الخادم إلى الإصدار 5.</p>';
+ if(v6()&&S.pushCounts){var pc=S.pushCounts;o+='<div style="font-size:.9rem">🔔 الإشعارات: '+(pc.ready?'<b>'+pc.all+'</b> هاتف مشترك'+(pc.teachers?' (منها '+pc.teachers+' للأساتذة)':''):'<span style="color:var(--danger)">غير مفعّلة في الخادم بعد: شغّل الدالة enablePush مرة واحدة من محرر الخادم.</span>')+'</div>'}
  o+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" data-a="refresh"'+(TL.busy?" disabled":"")+'>🔄 تحديث الموقع الآن</button><button class="btn ghost sm" data-a="backup"'+(TL.busy?" disabled":"")+'>💾 نسخة احتياطية من الجدول</button></div>';
  if(TL.out)o+='<div class="ok-msg">'+TL.out+'</div>';
  o+='<p class="hint" style="margin:0;color:var(--muted);font-size:.82rem">«تحديث الموقع»: بعد تعديل جدول الدروس يدويًا (وإلا يظهر التعديل خلال 6 ساعات). «نسخة احتياطية»: نسخة من جدول الدروس والأساتذة والإعلانات في Drive الخاص بك؛ اصنع واحدة كل شهر.</p></div>';
@@ -425,7 +469,7 @@ function copyText(t,btn){var done=function(){var o=btn.textContent;btn.textConte
  if(navigator.clipboard)navigator.clipboard.writeText(t).then(done,function(){fallback()});else fallback();
  function fallback(){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");done()}catch(e){}document.body.removeChild(a)}}
 
-function logout(){saveDraft();fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.gcTotal=undefined;S.viewSrc=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
+function logout(){saveDraft();TN={list:null,loading:false};TP={busy:false,out:"",err:""};S.pushCounts=null;fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.gcTotal=undefined;S.viewSrc=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
 
 app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if(!b)return;var a=b.dataset.a;
  if(a==="tab"){if(S.tab==="new"&&$("lf"))saveDraft();S.tab=b.dataset.k;S.msg=null;S.confirm=null;if(S.tab==="news"){NW.edit=null;NW.confirm=null}render();
@@ -447,6 +491,9 @@ app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if
  else if(a==="cancelPub"){if(PUB){PUB.cancel=true;if(PUB.ctl)PUB.ctl.abort();status("جاري الإلغاء…")}}
  else if(a==="discard"){ls(dkey(),null);S.restored=false;S.form=blankForm();render()}
  else if(a==="refresh"||a==="backup")toolRun(a);
+ else if(a==="pOn"){TP.busy=true;TP.err="";TP.out="";drawTpush();D.pushOn(S.code).then(function(){TP.busy=false;TP.out="تم ✓ ستصلك رسائل الإدارة على هذا الهاتف.";drawTpush()},function(e){TP.busy=false;TP.err=D.errText(e);drawTpush()})}
+ else if(a==="pOff"){TP.busy=true;D.pushOff().then(function(){TP.busy=false;TP.out="";TP.err="";drawTpush()})}
+ else if(a==="pTest"){TP.busy=true;TP.out="";TP.err="";drawTpush();D.call({action:"pushTest",code:S.code,s:D.pushInfo().id}).then(function(){TP.busy=false;TP.out="أُرسل إشعار تجريبي. يصل خلال ثوانٍ (إن لم يصل: تأكد أن الإشعارات مسموحة في إعدادات الهاتف).";drawTpush()},function(e){TP.busy=false;TP.err=D.errText(e);drawTpush()})}
  else if(a==="nEdit"){NW.edit=(NW.list||[]).filter(function(n){return n.id===b.dataset.id})[0]||null;renderNewsAdmin();window.scrollTo({top:0})}
  else if(a==="nCancel"){NW.edit=null;renderNewsAdmin()}
  else if(a==="nDel"){NW.confirm=b.dataset.id;renderNewsAdmin()}
@@ -479,7 +526,7 @@ window.addEventListener("beforeunload",function(e){if(S.busy||(S.form&&S.form.fi
 
 S.code=store();
 if(S.code&&D.apiOn()){S.busy=true;app.innerHTML='<div class="skeleton" style="max-width:420px;margin:24px auto"></div>';
- D.call({action:"login",code:S.code}).then(function(j){S.busy=false;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};render();prefetch()},function(e){S.busy=false;if(e.code==="AUTH")forget();render()})}
+ D.call({action:"login",code:S.code}).then(function(j){S.busy=false;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};if(typeof j.push==="string")D.pushKey(j.push);render();prefetch()},function(e){S.busy=false;if(e.code==="AUTH")forget();render()})}
 else render();
 })();
 </script>

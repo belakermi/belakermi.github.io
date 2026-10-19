@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#24272C">
 <link rel="preload" href="fonts/plex-ar-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 <script src="config.js"></script>
 <style>
   ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;counter-reset:s}
@@ -43,8 +43,14 @@
   <p style="margin:0">فضاء الأساتذة يحفظ الدروس والملفات في حساب Google الخاص بالمؤسسة، مجانًا. افعل هذه الخطوات <b>من حاسوب</b> إن أمكن، أو من الهاتف مع تفعيل «إصدار سطح المكتب» في Chrome.</p>
   <div class="card" style="display:flex;flex-direction:column;gap:8px;border-color:var(--gold)">
     <h3 style="font-size:1.05rem">الخادم مركّب من قبل؟ حدّثه فقط <small id="latest" style="font-weight:400;color:var(--muted)"></small></h3>
-    <p style="margin:0">في محرر Google: حدّد الكل واحذفه، ثم الصق <b>أجزاء الكود</b> من الخطوة 2 بالترتيب، واحفظ 💾.</p>
+    <ol class="pst" style="margin:0">
+      <li><b>من كمبيوتر</b>: افتح مشروع الخادم على <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com ↗</a>.</li>
+      <li>في المحرر: حدّد الكل واحذفه، ثم الصق الكود (الخطوة 2 ← «من حاسوب: نسخ الكود كاملًا»)، واحفظ 💾.</li>
+      <li><b>للإصدار 6، مرة واحدة وقبل النشر</b>: من القائمة في الأعلى اختر الدالة <b class="mono">enablePush</b> ← <b>تشغيل</b>. سيطلب Google إذنًا جديدًا (الاتصال بخدمة خارجية، لإرسال الإشعارات إلى Google وApple): <b>Advanced / إعدادات متقدمة</b> ← <b>الانتقال إلى المشروع</b> ← <b>سماح</b>. في السجل يظهر «✅ الإشعارات جاهزة».</li>
+      <li>انشر الإصدار الجديد:</li>
+    </ol>
     <p class="path" style="margin:0">نشر ← إدارة عمليات النشر ← ✏️ ← الإصدار: <b>إصدار جديد</b> ← نشر</p>
+    <div class="warn">إذا نشرت قبل تشغيل <b class="mono">enablePush</b> والسماح، قد يتوقف الخادم عن الرد حتى تسمح بالإذن. شغّلها ثم انشر من جديد.</div>
     <p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">الرابط لا يتغير، ولا حاجة لتشغيل setup مرة أخرى. البيانات والرموز تبقى كما هي. لمعرفة إصدار خادمك الحالي: زر «اختبار الاتصال» في الخطوة 5.</p>
     <p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">في جدول «دروس الموقع»: يمكنك ترتيب الصفوف أو إضافة أعمدة لك، لكن <b>لا تغيّر أسماء العناوين</b> في الصف الأول. بعد أي تعديل يدوي اضغط «تحديث الموقع الآن» في تبويب «الأساتذة».</p>
     <div class="warn">لا تختر «عملية نشر جديدة» عند التحديث، فهي تعطي رابطًا جديدًا. اختر «إدارة عمليات النشر» ثم ✏️ على عملية النشر الحالية.</div>
@@ -109,7 +115,7 @@ $("test").onclick=function(){var u=$("url").value.trim(),res=$("result");
  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\/]+\/exec$/.test(u)){res.innerHTML='<div class="msg">الرابط يجب أن يبدأ بـ https://script.google.com/macros/s/ وينتهي بـ /exec</div>';return}
  res.textContent="جاري الاختبار…";
  fetch(u+"?api=lessons&t="+Date.now()).then(function(r){return r.json()}).then(function(j){
-  if(j.ok){var v=+j.v||1;res.innerHTML='<div class="ok-msg">الخادم يعمل ✓ · الإصدار '+v+' · '+j.lessons.length+' درس.</div>'+(LATEST&&v<LATEST?'<div class="msg" style="margin-top:8px">يوجد إصدار أحدث ('+LATEST+'). حدّث الخادم بالخطوات في الإطار الذهبي أعلاه.</div>':'')}
+  if(j.ok){var v=+j.v||1;res.innerHTML='<div class="ok-msg">الخادم يعمل ✓ · الإصدار '+v+' · '+j.lessons.length+' درس.'+(v>=6?(j.push?' · الإشعارات جاهزة ✓':''):'')+'</div>'+(v>=6&&!j.push?'<div class="msg" style="margin-top:8px">الإشعارات غير مفعّلة بعد: شغّل الدالة enablePush مرة واحدة من المحرر واسمح بالإذن.</div>':'')+(LATEST&&v<LATEST?'<div class="msg" style="margin-top:8px">يوجد إصدار أحدث ('+LATEST+'). حدّث الخادم بالخطوات في الإطار الذهبي أعلاه.</div>':'')}
   else res.innerHTML='<div class="msg">الخادم يرد لكن الإعداد ناقص ('+j.error+'). شغّل الدالة setup مرة أخرى.</div>'
  }).catch(function(){res.innerHTML='<div class="msg">لا يوجد رد. تأكد أن «من يمكنه الوصول» = أي شخص، وأنك نسخت رابط /exec.</div>'})};
 })();

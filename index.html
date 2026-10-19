@@ -18,9 +18,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 <script src="config.js"></script>
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 </head>
 <body>
 <header class="facade">
@@ -56,6 +56,7 @@
   <section id="saved" hidden aria-label="محفوظاتي للمراجعة"></section>
   <section id="latest" hidden></section>
   <section id="view"><div class="skeleton"></div></section>
+  <section class="install pushc" id="pushc" hidden aria-live="polite"></section>
   <section class="install" id="install" hidden>
     <img class="iico" src="icons/app-192.png" width="52" height="52" alt="" loading="lazy">
     <span class="it"><b>ثبّت الموقع في هاتفك</b><small id="installHint">يفتح كتطبيق، والدروس التي فتحتها تبقى متاحة بدون إنترنت. قبل الاختبارات: افتح دروسك مرة واحدة بالإنترنت لتبقى معك.</small></span>
@@ -78,6 +79,7 @@
   <div class="in">
     <span><b id="fschool">متوسطة الشهيد بلعكرمي أعمر</b> · <span id="fplace">البيض</span></span>
     <span style="display:flex;gap:16px;flex-wrap:wrap"><a href="bem.html">BEM</a><a href="teacher.html">فضاء الأساتذة</a><a href="poster.html">ملصق QR للأقسام</a></span>
+    <span id="pushf" hidden>🔔 الإشعارات مفعّلة · <button class="lnk" type="button" data-act="pushOff">إيقاف</button></span>
   </div>
 </footer>
 
@@ -257,6 +259,9 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("[data-ac
   if(on&&l.src==="api")D.lesson(l.apiId).catch(function(){});   /* يُحفظ في الهاتف ليفتح بدون إنترنت */
   return}
  else if(a==="unsave"){var k2=b.getAttribute("data-k");D.toggleSaved({k:k2});setStars(k2,false);renderSaved();return}
+ else if(a==="pushOn"){PS.busy=true;PS.err="";renderPush();D.pushOn().then(function(){PS.busy=false;PS.just=true;renderPush()},function(e){PS.busy=false;PS.err=D.errText(e);renderPush()});return}
+ else if(a==="pushOff"){b.disabled=true;D.pushOff().then(function(){PS.just=false;PS.err="";renderPush()});return}
+ else if(a==="pushHide"){try{localStorage.setItem("doros-push-hide","1")}catch(e){}$("pushc").hidden=true;return}
  else if(a==="shareSubj"){var s2=subj(ui.subj);D.share("دروس "+(s2?s2.n:"")+" · "+YEARS[ui.year-1].name+" — "+SITE.name,D.siteUrl("./#y"+ui.year+"-"+ui.subj));return}
  go()});
 window.addEventListener("popstate",fromHash);window.addEventListener("hashchange",fromHash);
@@ -267,7 +272,22 @@ var saved=D.apiOn()?D.cached():null,base=[],apiL=saved?mapApi(saved.lessons):[];
 function merge(){lessons=base.concat(apiL)}
 function notice(t,retry){$("error").innerHTML=t?'<div class="msg" role="status" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>'+t+'</span>'+(retry?'<button class="btn sm" id="retry" type="button">إعادة المحاولة</button>':'')+'</div>':'';
  var b=$("retry");if(b)b.onclick=function(){notice("");fetchApi(true)}}
-function fetchApi(force){return D.lessons(force).then(function(L){apiL=mapApi(L);merge();render();notice(navigator.onLine?"":"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.")},function(){
+/* ---- الإشعارات على الهاتف (تظهر فقط عندما يكون الخادم على الإصدار 6) ---- */
+var PS={busy:false,err:"",just:false};
+function renderPush(){var el=$("pushc"),f=$("pushf");
+ D.pushStatus().then(function(st){
+  f.hidden=st!=="on";
+  var hide=false;try{hide=localStorage.getItem("doros-push-hide")==="1"}catch(e){}
+  if(st==="nokey"||st==="unsupported"||(st==="on"&&!PS.just)||(hide&&st!=="on"&&!PS.err)){el.hidden=true;return}
+  var t,btn="";
+  if(st==="on")t='<b>🔔 الإشعارات مفعّلة على هذا الهاتف ✓</b><small>ستصلك إعلانات المؤسسة. يمكنك إيقافها من أسفل الصفحة.</small>';
+  else if(st==="install")t='<b>🔔 إشعارات المؤسسة في آيفون</b><small>ثبّت الموقع أولًا: زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية». افتحه من هناك وفعّل الإشعارات.</small>';
+  else if(st==="denied")t='<b>🔔 الإشعارات ممنوعة</b><small>'+D.esc(D.errText({code:"DENIED"}))+'</small>';
+  else{t='<b>🔔 إشعارات المؤسسة</b><small>'+(PS.err?D.esc(PS.err):'تصلك الإعلانات المهمة على هاتفك، حتى لو كان الموقع مغلقًا.')+'</small>';
+   btn='<button class="btn sm" type="button" data-act="pushOn"'+(PS.busy?' disabled':'')+'>'+(PS.busy?'جاري التفعيل…':'فعّل')+'</button>'}
+  el.innerHTML='<span class="it">'+t+'</span>'+btn+(st!=="on"?'<button class="x" type="button" data-act="pushHide" aria-label="إخفاء" title="إخفاء">×</button>':'');
+  el.hidden=false})}
+function fetchApi(force){return D.lessons(force).then(function(L){apiL=mapApi(L);merge();render();renderPush();notice(navigator.onLine?"":"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.")},function(){
  if(!navigator.onLine)notice(saved?"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.":"أنت بدون إنترنت. اتصل ثم أعد المحاولة.",true);
  else if(saved)notice("الخادم مشغول الآن، والمعروض هو آخر نسخة محفوظة في هاتفك.",true);
  else notice("تعذّر تحميل دروس الأساتذة (الخادم مشغول أو الاتصال ضعيف).",true)})}
@@ -279,7 +299,10 @@ fetch("lessons.csv?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)
   if(t!==csv0){try{localStorage.setItem(CSVK,t)}catch(e){}base=fromRows(parseCSV(t));merge()}loaded=true;render()},
  function(){loaded=true;render()});
 D.track("/","الصفحة الرئيسية");
-if(D.apiOn()){D.markVisit();fetchApi()}
+renderPush();
+/* فُتح من إشعار: نجلب الإعلانات الجديدة فورًا، ونُظهرها في أعلى الصفحة */
+var fromPush=/[?&]from=push/.test(location.search);
+if(D.apiOn()){D.markVisit();fetchApi(fromPush).then(function(){if(fromPush&&!$("news").hidden)$("news").scrollIntoView({block:"start"})})}
 
 /* ---- التثبيت كتطبيق ---- */
 if(!D.standalone()){

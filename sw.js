@@ -10,9 +10,9 @@
 var V = "doros-v3";
 /* عند تغيير رقم ?v= في الصفحات، غيّره هنا أيضًا (وإلا يُحمَّل الملف الجديد من الشبكة عند أول طلب فقط) */
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
-  "style.css?v=8", "common.js?v=8", "imgpdf.js?v=4", "config.js", "lessons.csv",
+  "style.css?v=9", "common.js?v=9", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
-  "icons/app-192.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
+  "icons/app-192.png", "icons/badge-96.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 /* صورة المتوسطة في الصفحة الرئيسية: الهاتف يختار نسخة واحدة حسب شاشته، فنحفظ التي حمّلها فقط (بدون أي تحميل إضافي)
    لتظهر الصورة حتى لو فُتح التطبيق بدون إنترنت بعد أول زيارة */
 var IF_LOADED = ["img/school-600.webp", "img/school-900.webp", "img/school-hero.jpg"];
@@ -167,4 +167,53 @@ self.addEventListener("fetch", function (e) {
   }
   if (/[?&]api=lessons?(&|$)/.test(url.search)) { e.respondWith(apiFirst(req)); return; }
   if (url.hostname === "cdnjs.cloudflare.com") { e.respondWith(cacheFirst(req)); return; }
+});
+
+/* ---- الإشعارات (خادم الإصدار 6) ----
+   الإشارة تصل فارغة؛ نسأل الخادم عن نص الرسالة (برقم اشتراك هذا الهاتف، المحفوظ عند التفعيل) ثم نعرضها.
+   تأخير عشوائي صغير قبل السؤال حتى لا تسأل كل الهواتف في اللحظة نفسها، ومحاولتان إضافيتان عند الزحام */
+function pushInfo() {
+  return caches.open("dpush").then(function (c) { return c.match("/__push"); }).then(function (r) { return r ? r.json() : null; }).catch(function () { return null; });
+}
+function pushMessage(inf) {
+  if (!inf || !inf.api) return Promise.resolve(null);
+  function ask(n) {
+    return timeout(n ? 1500 + Math.random() * 2000 : Math.random() * 2000).then(function () {
+      return fetch(inf.api + "?api=pushmsg&s=" + encodeURIComponent(inf.s || "") + "&t=" + Date.now());
+    }).then(function (r) { return r.json(); }).then(function (j) { return j && j.ok ? j.msg : null; })
+      .catch(function () { return n < 2 ? ask(n + 1) : null; });
+  }
+  return ask(0);
+}
+self.addEventListener("push", function (e) {
+  e.waitUntil(pushInfo().then(pushMessage).then(function (m) {
+    m = m || {};
+    return self.registration.showNotification(m.title || "إعلان جديد من المؤسسة", {
+      body: m.text || "افتح الموقع لقراءته.", icon: "icons/app-192.png", badge: "icons/badge-96.png",
+      tag: "doros-msg", renotify: true, lang: "ar", dir: "rtl", data: { url: m.url || "./" }
+    });
+  }));
+});
+/* الضغط على الإشعار: يفتح الموقع (أو فضاء الأساتذة). from=push تجعل الصفحة تجلب الإعلانات الجديدة فورًا
+   (بدل نسخة الهاتف التي عمرها أقل من دقيقة). إن كان الموقع مفتوحًا ننقله إلى الصفحة بدل فتح نافذة ثانية */
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var u = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope);
+  u.searchParams.set("from", "push");
+  e.waitUntil(self.clients.matchAll({ type: "window" }).then(function (cs) {
+    var c = cs.filter(function (x) { return "navigate" in x; })[0];
+    if (c) return c.navigate(u.href).then(function (w) { return (w || c).focus(); }).catch(function () { return self.clients.openWindow(u.href); });
+    return self.clients.openWindow ? self.clients.openWindow(u.href) : null;
+  }));
+});
+/* المتصفح جدّد عنوان الإشعارات لهذا الهاتف: نشترك من جديد ونخبر الخادم (الرقم نفسه، فلا يُحسب الهاتف مرتين) */
+self.addEventListener("pushsubscriptionchange", function (e) {
+  e.waitUntil(pushInfo().then(function (inf) {
+    if (!inf || !inf.key || !inf.api) return;
+    var s = String(inf.key).replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+    var raw = atob(s), key = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+    return self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }).then(function (sub) {
+      return fetch(inf.api, { method: "POST", body: JSON.stringify({ action: "pushSub", endpoint: sub.endpoint, id: inf.s }) });
+    });
+  }).catch(function () {}));
 });
