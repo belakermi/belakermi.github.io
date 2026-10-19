@@ -1,4 +1,5 @@
 // خادم فضاء الأساتذة — متوسطة الشهيد بلعكرمي أعمر
+// الإصدار 7 (فضاء الأساتذة أسرع بكثير، والإشعار يظهر فورًا على الهاتف مع نصه)
 // الإصدار 6 (إشعارات على الهواتف بدون شركة خارجية، رسائل للأساتذة فقط)
 // الإصدار 5 (عدد المشاهدات والزيارات، قراءة الجدول حسب أسماء الأعمدة، منع التكرار، نسخة احتياطية)
 //
@@ -12,8 +13,9 @@
 // التحديث إلى إصدار جديد (الرابط لا يتغير):
 //   الصق الكود الجديد مكان القديم ← حفظ ← نشر ← إدارة عمليات النشر ← ✏️ ← الإصدار: إصدار جديد ← نشر
 //   (لا تختر «عملية نشر جديدة»: فهي تعطي رابطًا جديدًا)
-//   من الإصدار 5 إلى 6: بعد الحفظ اختر الدالة enablePush واضغط «تشغيل» مرة واحدة، واسمح بالإذن الجديد
+//   من الإصدار 5 إلى 6 أو 7: بعد الحفظ اختر الدالة enablePush واضغط «تشغيل» مرة واحدة، واسمح بالإذن الجديد
 //   (الاتصال بخدمة خارجية: لإرسال الإشعارات إلى Google وApple)، ثم انشر إصدارًا جديدًا كما سبق
+//   من الإصدار 6 إلى 7: لا أذونات جديدة. الصق ← حفظ ← نشر إصدار جديد فقط
 //
 // البيانات تُحفظ في جدول Google باسم «دروس الموقع» في حسابك،
 // والملفات في مجلد «ملفات دروس الموقع» (مشارك للعرض فقط).
@@ -26,12 +28,12 @@ var TZ = "Africa/Algiers";
 var MAX_FILE_MB = 20;
 var MAX_FILES = 10;
 var MAX_VIDEOS = 10;
-var DAILY_UPLOAD_MB = 300;   // حد الرفع اليومي لكل أستاذ، لحماية مساحة Drive
+var DAILY_UPLOAD_MB = 2000;  // حد الرفع اليومي لكل أستاذ (حماية من رمز مسروق؛ المساحة الكبيرة في Drive تسمح بالكثير)
 var EXCERPT = 220;           // طول مقتطف الشرح في قائمة الدروس
 var CACHE_TTL = 21600;       // 6 ساعات (الحد الأقصى في Google)
 var CHUNK = 40000;           // حجم القطعة في الذاكرة المؤقتة (أقل من حد 100KB)
 var LOCK_WAIT = 30000;       // أقصى انتظار عند نشر عدة أساتذة في اللحظة نفسها
-var VERSION = 6;
+var VERSION = 7;
 var VIEW_SHARDS = 20;        // عدّادات المشاهدات المؤقتة (موزعة حتى لا تتزاحم)
 var VIEW_FLUSH = 600;        // تُنقل إلى الجدول مرة كل 10 دقائق على الأكثر
 
@@ -49,12 +51,13 @@ var TYPES = ["lesson", "ex", "devoir", "exam", "corr", "bem", "bemc"];  // در�
 var L_HEAD = ["id", "date", "year", "subject", "term", "title", "text", "files", "videos", "teacher", "teacherId", "status", "updated", "type", "unit", "views"];
 var T_HEAD = ["id", "name", "subjects", "code", "role", "active"];
 var N_HEAD = ["id", "date", "title", "text", "until", "author", "status", "pinned", "audience"];   // audience: فارغ = الجميع، teachers = الأساتذة فقط
-var S_HEAD = ["id", "endpoint", "kind", "teacherId", "created", "fails"];   // الهواتف المشتركة في الإشعارات (بدون أسماء)
+var S_HEAD = ["id", "endpoint", "kind", "teacherId", "created", "fails", "keys"];   // الهواتف المشتركة في الإشعارات (بدون أسماء). keys: مفتاحا التشفير من الهاتف
 var L_SHEET = "الدروس", T_SHEET = "الأساتذة", N_SHEET = "الإعلانات", S_SHEET = "الإشعارات";
-var L_TEXT = ["title", "text", "unit"], T_TEXT = ["name", "code"], N_TEXT = ["title", "text", "until"], S_TEXT = ["id", "endpoint"];
+var L_TEXT = ["title", "text", "unit"], T_TEXT = ["name", "code"], N_TEXT = ["title", "text", "until"], S_TEXT = ["id", "endpoint", "keys"];
 var MAX_SUBS = 5000;          // أقصى عدد هواتف مشتركة (حد Google: 20000 اتصال خارجي في اليوم)
 var PUSH_TTL = 172800;        // هاتف مغلق يستلم الإشعار إذا اشتغل خلال يومين
 var PUSH_CONTACT = "https://aadl.tech";   // يُرسل مع كل إشعار (معيار VAPID) ليعرف مزوّد الإشعارات صاحب الإرسال
+var PUSH_ENC_MS = 25000;       // وقت أقصى لتشفير نصوص الإشعارات؛ الهواتف الباقية تستلم إشارة فارغة وتسأل الخادم عن النص
 var PUSH_HOSTS = /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)$/;
 
 // ---------------- الإعداد ----------------
@@ -64,6 +67,7 @@ function setup() {
   var ss = null, ssId = p.getProperty("SS");
   if (ssId) { try { ss = SpreadsheetApp.openById(ssId); } catch (e) { ss = null; } }
   if (!ss) { ss = SpreadsheetApp.create("دروس الموقع - " + SCHOOL); p.setProperty("SS", ss.getId()); }
+  SS_ = ss;
 
   var lsh = ss.getSheetByName(L_SHEET) || ss.insertSheet(L_SHEET);
   var tsh = ss.getSheetByName(T_SHEET) || ss.insertSheet(T_SHEET);
@@ -87,7 +91,8 @@ function setup() {
     admin = { id: newId_(), name: "مدير الموقع", subjects: "", code: newCode_(), role: "admin", active: true };
     insert_(tt, admin);
   }
-  snapshot_(rebuild_());
+  TF_ = null; teachersFresh_();
+  snapshot_(rebuild_({ freshNews: true }));
   try { vapid_(true); } catch (e) {}
   Logger.log("✅ تم الإعداد.");
   Logger.log("🔑 رمز المدير: " + admin.code);
@@ -121,6 +126,7 @@ function backup() {
 // ---------------- نقاط الوصول ----------------
 
 function doGet(e) {
+  TF_ = null; SS_ = null;
   var p = (e && e.parameter) || {};
   try {
     if (p.api === "lessons" || p.api === "lesson") {
@@ -140,28 +146,35 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  TF_ = null; SS_ = null;
   try {
     var req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     // الاشتراك في الإشعارات لا يحتاج رمزًا (التلاميذ والأولياء)؛ مع رمز أستاذ يصبح اشتراك أستاذ
     if (req.action === "pushSub") { var sub = pushSub_(req); sub.ok = true; return json_(sub); }
     if (req.action === "pushUnsub") { pushUnsub_(req); return json_({ ok: true }); }
-    var who = auth_(req.code), out;
+    // العمليات التي تغيّر شيئًا تتأكد من الرمز في الجدول نفسه؛ القراءة تتأكد منه في الذاكرة المؤقتة (أسرع بكثير)
+    var strict = /^(save|delete|teachers|addTeacher|removeTeacher|resetCode|newsSave|newsDelete|refresh|backup)$/.test(String(req.action));
+    var who = auth_(req.code, strict), out;
     switch (req.action) {
-      case "login": var lk = null; try { lk = vapid_(false); } catch (x) {} out = { name: who.name, role: who.role, subjects: who.subjects, v: VERSION, push: lk ? lk.pub : "" }; break;
+      case "login": var lk = null; try { lk = vapid_(false); } catch (x) {} out = { name: who.name, role: who.role, subjects: who.subjects, v: VERSION, push: lk ? lk.pub : "" };
+        if (req.boot) boot_(who, out);   // كل ما تحتاجه صفحة الأستاذ عند فتحها، في طلب واحد
+        break;
       case "teacherNews": out = { news: activeNews_("teachers") }; break;
       case "pushTest": out = { push: pushSend_("all", "تجربة الإشعارات ✓", "الإشعارات تعمل على هذا الهاتف.", String(req.s || "")) }; break;
       case "upload": out = { file: upload_(who, req.file) }; break;
       case "save": out = save_(who, req.lesson); break;   // { id } أو { id, dup: true } إذا وصلت المحاولة نفسها مرة ثانية
       case "mine": out = { lessons: mine_(who) }; break;
       case "delete": del_(who, req.id); out = {}; break;
-      case "teachers": admin_(who); out = { teachers: teachers_().map(publicTeacher_), storage: storage_(), visits: visits_(), push: pushCounts_() }; break;
+      case "teachers": admin_(who); out = { teachers: teachersFresh_().map(publicTeacher_), storage: storage_(), visits: visits_(), push: pushCounts_() }; break;
       case "addTeacher": admin_(who); out = { teacher: publicTeacher_(addTeacher_(req.name, req.subjects)) }; break;
       case "removeTeacher": admin_(who); removeTeacher_(req.id); out = {}; break;
       case "resetCode": admin_(who); out = { code: resetCode_(req.id) }; break;
       case "news": admin_(who); out = { news: newsAll_() }; break;
-      case "newsSave": admin_(who); out = { id: newsSave_(who, req.item) };
-        // الإعلان يُحفظ أولًا؛ إن تعذّر الإشعار يبقى الإعلان منشورًا ويُخبَر المدير بالسبب
+      case "newsSave": admin_(who); var ns = newsSave_(who, req.item); out = { id: ns.id };
+        // الإعلان يُحفظ أولًا؛ إن تعذّر الإشعار يبقى الإعلان منشورًا ويُخبَر المدير بالسبب.
+        // الإشعار يُرسل قبل حفظ النسخة السريعة في Drive، فيصل إلى الهواتف أسرع
         if (req.item && req.item.push === true) { try { out.push = pushSend_(req.item.audience, req.item.title, req.item.text); } catch (x) { out.pushError = errCode_(x); } }
+        snapshot_(ns.built);
         break;
       case "newsDelete": admin_(who); newsDelete_(req.id); out = {}; break;
       case "refresh": admin_(who); out = refresh_(); break;
@@ -236,10 +249,14 @@ function guard_(sh) {
 
 // ---------------- الأساتذة ----------------
 
-function auth_(code) {
+// strict = نتأكد من الجدول نفسه (للعمليات التي تغيّر شيئًا). غير ذلك: من الذاكرة المؤقتة، وإن لم يوجد الرمز فيها
+// (رمز جديد أُضيف يدويًا في الجدول مثلًا) نقرأ الجدول مرة، إلا إذا قُرئ قبل أقل من دقيقة
+function auth_(code, strict) {
   code = String(code || "").trim().toUpperCase();
   if (code.length < 6) throw new Error("AUTH");
-  var t = teachers_().filter(function (x) { return x.code === code && x.active; })[0];
+  function find(all) { return all.filter(function (x) { return x.code === code && x.active; })[0]; }
+  var all = strict ? teachersFresh_() : teachersFast_(), t = find(all);
+  if (!t && !all.fresh && !CacheService.getScriptCache().get("tfresh")) t = find(teachersFresh_());
   if (!t) throw new Error("AUTH");
   return t;
 }
@@ -252,6 +269,35 @@ function teacherOf_(r) {
 function teachers_(t) { return (t || table_(T_SHEET, T_HEAD)).rows.map(teacherOf_); }
 function publicTeacher_(t) { return { id: t.id, name: t.name, subjects: t.subjects, code: t.code, role: t.role, active: t.active }; }
 
+// قائمة الأساتذة للتحقق السريع من الرمز، بدون فتح الجدول (فتحه يأخذ 3 إلى 5 ثوانٍ):
+// في الذاكرة المؤقتة، ونسخة في خصائص المشروع تبقى بعد انتهاء صلاحية الذاكرة. تتجدد عند كل تغيير من الموقع،
+// وعند كل نشر أو حذف (يُقرأ فيهما الجدول على أي حال)، وعند «تحديث الموقع».
+var TF_ = null;   // القائمة كما قُرئت من الجدول في هذا الطلب
+function tpack_(all) { return JSON.stringify(all.map(function (t) { return [t.id, t.name, t.subjects, t.code, t.role === "admin" ? 1 : 0, t.active ? 1 : 0]; })); }
+function tunpack_(s) { return JSON.parse(s).map(function (a) { return { id: String(a[0]), name: String(a[1]), subjects: String(a[2] || ""), code: String(a[3]), role: a[4] ? "admin" : "teacher", active: !!a[5] }; }); }
+function teachersKeep_(all) {
+  var s = tpack_(all), c = CacheService.getScriptCache();
+  c.put("tfresh", "1", 60);
+  if (c.get("teachers") === s) return;
+  c.put("teachers", s, CACHE_TTL);
+  try { propsPut_("TEACHERS", s); } catch (e) {}
+}
+function teachersFresh_() {
+  if (TF_) return TF_;
+  var lock = LockService.getScriptLock(), mine = lock.tryLock(0);   // نحفظ النسخة فقط ونحن نملك القفل: لا تسبق نسخةٌ قديمة تغييرًا يجري الآن
+  try { TF_ = teachers_(); if (mine) teachersKeep_(TF_); } finally { if (mine) lock.releaseLock(); }
+  TF_.fresh = true;
+  return TF_;
+}
+function teachersFast_() {
+  var c = CacheService.getScriptCache(), s = c.get("teachers");
+  if (!s) { s = propsGet_("TEACHERS"); if (s) c.put("teachers", s, CACHE_TTL); }
+  if (s) { try { return tunpack_(s); } catch (e) {} }
+  return teachersFresh_();
+}
+// بعد تغيير من الموقع (والقفل محجوز): القائمة الجديدة مباشرة
+function teachersSet_(all) { TF_ = all; TF_.fresh = true; teachersKeep_(all); }
+
 function addTeacher_(name, subjects) {
   name = clean_(name, 60);
   if (name.length < 2) throw new Error("BAD_INPUT");
@@ -260,8 +306,9 @@ function addTeacher_(name, subjects) {
   try {
     var sh = sheet_(T_SHEET); headers_(sh, T_HEAD, T_TEXT);
     var tt = table_(sh, T_HEAD);
-    var t = { id: newId_(), name: name, subjects: subjects, code: uniqueCode_(teachers_(tt)), role: "teacher", active: true };
+    var all = teachers_(tt), t = { id: newId_(), name: name, subjects: subjects, code: uniqueCode_(all), role: "teacher", active: true };
     insert_(tt, t);
+    all.push(t); teachersSet_(all);
     return t;
   } finally { lock.releaseLock(); }
 }
@@ -269,10 +316,11 @@ function addTeacher_(name, subjects) {
 function removeTeacher_(id) {
   var lock = lock_();
   try {
-    var tt = table_(T_SHEET, T_HEAD), t = teachers_(tt).filter(function (x) { return x.id === String(id); })[0];
+    var tt = table_(T_SHEET, T_HEAD), all = teachers_(tt), t = all.filter(function (x) { return x.id === String(id); })[0];
     if (!t) throw new Error("NOT_FOUND");
     if (t.role === "admin") throw new Error("FORBIDDEN");
     setCell_(tt, t._r, "active", false);
+    t.active = false; teachersSet_(all);
     try { pushDropTeacher_(t.id); } catch (e) {}
   } finally { lock.releaseLock(); }
 }
@@ -286,6 +334,7 @@ function resetCode_(id) {
     if (t.role === "admin") throw new Error("FORBIDDEN");
     var code = uniqueCode_(all);
     setCell_(tt, t._r, "code", code);
+    t.code = code; teachersSet_(all);
     return code;
   } finally { lock.releaseLock(); }
 }
@@ -328,8 +377,11 @@ function uploader_(file) {
   var m = String(file.getDescription() || "").match(/^u:([a-z0-9]+)/);
   return m ? m[1] : "";
 }
+// مساحة Drive (للمدير): تُحفظ ساعة في الذاكرة المؤقتة، فسؤال Drive بطيء
 function storage_() {
-  try { return { used: DriveApp.getStorageUsed(), limit: DriveApp.getStorageLimit() }; } catch (e) { return null; }
+  var c = CacheService.getScriptCache(), v = c.get("storage");
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  try { var o = { used: DriveApp.getStorageUsed(), limit: DriveApp.getStorageLimit() }; c.put("storage", JSON.stringify(o), 3600); return o; } catch (e) { return null; }
 }
 
 // ---------------- الدروس ----------------
@@ -441,10 +493,46 @@ function view_(l, withOwner) {
   return o;
 }
 
+// دروس الأستاذ (أو كل الدروس للمدير): من الذاكرة المؤقتة التي يبنيها rebuild_، بدون فتح الجدول.
+// own = لكل درس: [رقم الأستاذ، المشاهدات المحفوظة في الجدول]، ونضيف المشاهدات التي لم تُنقل إلى الجدول بعد
 function mine_(who) {
-  var buf = viewBuffer_().lessons;   // المشاهدات التي لم تُنقل إلى الجدول بعد
-  return lessons_().filter(function (l) { return l.status === "published" && (who.role === "admin" || l.teacherId === who.id); })
-    .map(function (l) { var o = view_(l, true); o.views = l.views + (buf[l.id] || 0); return o; }).sort(function (a, b) { return b.ts - a.ts; });
+  var b = ownData_(), buf = viewBuffer_().lessons, out = [];
+  b.list.forEach(function (v) {
+    var o = b.own[v.id];
+    if (!o || (who.role !== "admin" && o[0] !== who.id)) return;
+    var x = {}; for (var k in v) x[k] = v[k];
+    if (x.more) { x.text = b.texts[x.id]; delete x.more; }
+    x.teacherId = o[0]; x.views = (Number(o[1]) || 0) + (buf[v.id] || 0);
+    out.push(x);
+  });
+  return out;   // القائمة مرتبة أصلًا: الأحدث أولًا
+}
+// القائمة والشروح الكاملة وأصحاب الدروس، من نفس عملية البناء (وإلا نعيد البناء: لا نعرض شرحًا مقطوعًا للتعديل)
+function ownData_() {
+  try {
+    var g = cacheGetMany_(["own", "list", "texts"]);
+    if (g) {
+      var o = JSON.parse(g.own.s);
+      if (o.l === g.list.v && o.t === g.texts.v) {
+        var b = { list: JSON.parse(g.list.s), texts: JSON.parse(g.texts.s), own: o.m };
+        if (b.list.every(function (v) { return !v.more || typeof b.texts[v.id] === "string"; })) return b;
+      }
+    }
+  } catch (e) {}
+  var lock = LockService.getScriptLock();
+  if (lock.tryLock(0)) { try { return rebuild_({}); } finally { lock.releaseLock(); } }
+  return rebuild_({ noCache: true });
+}
+// الإصدار 7: كل ما تحتاجه صفحة الأستاذ عند فتحها (دروسه، رسائل الإدارة؛ وللمدير: الإعلانات والأساتذة والأرقام)
+function boot_(who, out) {
+  try { out.mine = mine_(who); } catch (e) {}
+  try { out.tnews = activeNews_("teachers"); } catch (e) {}
+  if (who.role !== "admin") return;
+  try { out.news = newsAll_(); } catch (e) {}
+  try { out.teachers = teachersFast_().map(publicTeacher_); } catch (e) {}
+  out.storage = storage_();
+  try { out.visits = visits_(); } catch (e) {}
+  try { out.pushn = pushCounts_(); } catch (e) {}
 }
 
 // ---------------- عدد المشاهدات والزيارات ----------------
@@ -497,7 +585,7 @@ function flushViews_() {
         if (ci > 0 && cv > 0) {
           var ids = sh.getRange(2, ci, last - 1, 1).getValues(), vals = sh.getRange(2, cv, last - 1, 1).getValues(), changed = false;
           for (var r = 0; r < ids.length; r++) { var n = b.lessons[String(ids[r][0])]; if (n) { vals[r][0] = (Number(vals[r][0]) || 0) + n; changed = true; } }
-          if (changed) sh.getRange(2, cv, last - 1, 1).setValues(vals);
+          if (changed) { sh.getRange(2, cv, last - 1, 1).setValues(vals); ownAdd_(b.lessons); }
         }
       }
       b.lessons = {};
@@ -517,6 +605,16 @@ function flushViews_() {
     for (k in b.days) back["@" + k] = b.days[k];
     if (Object.keys(back).length) c.put("vb:0", JSON.stringify(back), CACHE_TTL);
   }
+}
+
+// المشاهدات نُقلت إلى الجدول: نضيفها أيضًا إلى نسخة «own» في الذاكرة (يُستدعى والقفل محجوز)
+function ownAdd_(add) {
+  try {
+    var s = cacheGet_("own"); if (!s) return;
+    var o = JSON.parse(s);
+    for (var id in add) if (o.m[id]) o.m[id][1] = (Number(o.m[id][1]) || 0) + add[id];
+    cachePut_("own", JSON.stringify(o));
+  } catch (e) {}
 }
 
 // للمدير: الزيارات اليومية (اليوم، آخر 7 أيام، آخر 30 يومًا، المجموع، وآخر 14 يومًا يومًا بيوم)
@@ -539,9 +637,7 @@ function visits_() {
 // ---------------- لوحة الإعلانات (المدير فقط) ----------------
 
 function newsSheet_() {
-  var id = PropertiesService.getScriptProperties().getProperty("SS");
-  if (!id) throw new Error("NOT_SETUP");
-  var ss = SpreadsheetApp.openById(id), sh = ss.getSheetByName(N_SHEET);
+  var ss = ss_(), sh = ss.getSheetByName(N_SHEET);
   if (!sh) { sh = ss.insertSheet(N_SHEET); headers_(sh, N_HEAD, N_TEXT); }
   return sh;
 }
@@ -552,14 +648,30 @@ function newsOf_(r) {
 }
 function newsRows_(t) { return (t || table_(newsSheet_(), N_HEAD)).rows.map(newsOf_); }
 function newsView_(n) { return { id: n.id, date: n.date, title: n.title, text: n.text, until: n.until, pinned: n.pinned, audience: n.audience }; }
-function newsAll_() {
+// كل الإعلانات المنشورة. fresh = من الجدول؛ وإلا من الذاكرة المؤقتة (تُكتب فقط والقفل محجوز، حتى لا تسبق نسخةٌ قديمة تعديلًا)
+function newsAll_(fresh) {
+  if (!fresh) {
+    var s = cacheGet_("newsall");
+    if (s) { try { return JSON.parse(s); } catch (e) {} }
+    var lock = LockService.getScriptLock();
+    if (lock.tryLock(0)) { try { var a = newsAll_(true); cachePut_("newsall", JSON.stringify(a)); return a; } finally { lock.releaseLock(); } }
+  }
   return newsRows_().filter(function (n) { return n.status === "published"; })
     .sort(function (a, b) { return (b.pinned - a.pinned) || (b.ts - a.ts); }).map(newsView_);
 }
 // الإعلانات الظاهرة: للموقع العام (بدون رسائل الأساتذة)، أو للأساتذة فقط داخل فضائهم
-function activeNews_(aud) {
+function activeNews_(aud, all) {
   var today = day_(Date.now());
-  return newsAll_().filter(function (n) { return (!n.until || n.until >= today) && (aud === "teachers" ? n.audience === "teachers" : n.audience !== "teachers"); }).slice(0, 10);
+  return (all || newsAll_()).filter(function (n) { return (!n.until || n.until >= today) && (aud === "teachers" ? n.audience === "teachers" : n.audience !== "teachers"); }).slice(0, 10);
+}
+// بعد تعديل الإعلانات (والقفل محجوز): نجدد ذاكرة الإعلانات فقط، والدروس من الذاكرة كما هي (أسرع)
+function newsBuilt_() {
+  var g = null;
+  try { g = cacheGetMany_(["list", "texts"]); } catch (e) {}
+  if (!g) return rebuild_({ freshNews: true });
+  var all = newsAll_(true), news = activeNews_("", all);
+  cachePut_("newsall", JSON.stringify(all)); cachePut_("news", JSON.stringify(news));
+  return { list: JSON.parse(g.list.s), texts: JSON.parse(g.texts.s), news: news };
 }
 function newsSave_(who, it) {
   if (!it) throw new Error("BAD_INPUT");
@@ -580,10 +692,9 @@ function newsSave_(who, it) {
       id = newId_();
       insert_(t, { id: id, date: now, title: title, text: text, until: until, author: who.name, status: "published", pinned: pinned, audience: audience });
     }
-    built = rebuild_({ freshNews: true });
+    built = newsBuilt_();
   } finally { lock.releaseLock(); }
-  snapshot_(built);
-  return id;
+  return { id: id, built: built };   // النسخة السريعة في Drive تُحفظ بعد إرسال الإشعار
 }
 function newsDelete_(id) {
   var built;
@@ -592,7 +703,7 @@ function newsDelete_(id) {
     var t = table_(newsSheet_(), N_HEAD), n = newsRows_(t).filter(function (x) { return x.id === String(id) && x.status === "published"; })[0];
     if (!n) throw new Error("NOT_FOUND");
     setCell_(t, n._r, "status", "deleted");
-    built = rebuild_({ freshNews: true });
+    built = newsBuilt_();
   } finally { lock.releaseLock(); }
   snapshot_(built);
 }
@@ -601,7 +712,7 @@ function newsDelete_(id) {
 function refresh_() {
   var built;
   var lock = lock_();
-  try { built = rebuild_({ freshNews: true }); } finally { lock.releaseLock(); }
+  try { built = rebuild_({ freshNews: true }); TF_ = null; teachersSet_(teachers_()); CacheService.getScriptCache().remove("storage"); } finally { lock.releaseLock(); }
   snapshot_(built);
   return { lessons: built.list.length, news: built.news.length };
 }
@@ -643,26 +754,30 @@ function miss_() {
 
 function rebuild_(o) {
   o = o || {};
-  var list = [], texts = {};
+  var list = [], texts = {}, own = {};
   (o.lessons || lessons_()).forEach(function (l) {
     if (l.status !== "published") return;
     var v = view_(l, false);
+    own[v.id] = [l.teacherId, l.views];   // لفضاء الأساتذة فقط (لا يُرسل للتلاميذ)
     if (v.text.length > EXCERPT) { texts[v.id] = v.text; v.text = v.text.slice(0, EXCERPT); v.more = 1; }
     list.push(v);
   });
   list.sort(function (a, b) { return b.ts - a.ts; });
-  var news = null;
-  if (!o.freshNews) { var ns = cacheGet_("news"); if (ns) try { news = JSON.parse(ns); } catch (e) { news = null; } }
-  if (!news) news = activeNews_();
+  var all = null;
+  if (!o.freshNews) { var ns = cacheGet_("newsall"); if (ns) try { all = JSON.parse(ns); } catch (e) { all = null; } }
+  if (!all) all = newsAll_(true);
+  var news = activeNews_("", all);
   if (!o.noCache) {
     try {
+      cachePut_("newsall", JSON.stringify(all));
       cachePut_("news", JSON.stringify(news));
-      cachePut_("texts", JSON.stringify(texts));
-      cachePut_("list", JSON.stringify(list));
+      var tv = cachePut_("texts", JSON.stringify(texts));
+      var lv = cachePut_("list", JSON.stringify(list));
+      cachePut_("own", JSON.stringify({ l: lv, t: tv, m: own }));
       CacheService.getScriptCache().put("built", String(Date.now()), CACHE_TTL);
     } catch (e) {}
   }
-  return { list: list, texts: texts, news: news };
+  return { list: list, texts: texts, news: news, own: own };
 }
 
 // تجديد الذاكرة قبل انتهاء صلاحيتها (6 ساعات)، مرة واحدة فقط وبدون انتظار الآخرين
@@ -696,6 +811,7 @@ function snapshotRead_() {
 }
 
 // تخزين نص طويل في عدة قطع (حد Google: 100KB لكل مفتاح)
+// يعيد رقم النسخة (ver)، ليُعرف أن قيمتين كُتبتا في عملية البناء نفسها
 function cachePut_(key, s) {
   var c = CacheService.getScriptCache(), ver = newId_(), map = {}, n = 0;
   for (var i = 0; i < s.length; i += CHUNK) map[key + ":" + ver + ":" + (n++)] = s.slice(i, i + CHUNK);
@@ -708,21 +824,32 @@ function cachePut_(key, s) {
     for (var j = 0; j < Number(pv[1]); j++) old.push(key + ":" + pv[0] + ":" + j);
     try { c.removeAll(old); } catch (e) {}
   }
+  return ver;
 }
-function cacheGet_(key) {
-  var c = CacheService.getScriptCache(), ptr = c.get(key + ":ptr");
-  if (!ptr) return null;
-  var pv = ptr.split(":"), keys = [];
-  for (var i = 0; i < Number(pv[1]); i++) keys.push(key + ":" + pv[0] + ":" + i);
-  var got = c.getAll(keys), s = "";
-  for (var k = 0; k < keys.length; k++) { if (got[keys[k]] == null) return null; s += got[keys[k]]; }
-  return s;
+function cacheGet_(key) { var g = cacheGetMany_([key]); return g ? g[key].s : null; }
+// عدة قيم في طلبين فقط للذاكرة: { key: { s: النص، v: رقم النسخة } }، أو null إن نقصت واحدة
+function cacheGetMany_(names) {
+  var c = CacheService.getScriptCache(), ptrs = c.getAll(names.map(function (k) { return k + ":ptr"; })), keys = [], parts = {};
+  for (var i = 0; i < names.length; i++) {
+    var ptr = ptrs[names[i] + ":ptr"];
+    if (!ptr) return null;
+    var pv = ptr.split(":"); parts[names[i]] = { v: pv[0], k: [] };
+    for (var j = 0; j < Number(pv[1]); j++) { var key = names[i] + ":" + pv[0] + ":" + j; parts[names[i]].k.push(key); keys.push(key); }
+  }
+  var got = c.getAll(keys), out = {};
+  for (var n in parts) {
+    var s = "";
+    for (var m = 0; m < parts[n].k.length; m++) { var x = got[parts[n].k[m]]; if (x == null) return null; s += x; }
+    out[n] = { s: s, v: parts[n].v };
+  }
+  return out;
 }
 
 // ---------------- الإشعارات على الهواتف (بدون شركة خارجية) ----------------
 // الهاتف يشترك من الموقع، ونحفظ «عنوان الإشعار» الذي يعطيه له المتصفح (رابط عند Google أو Apple أو Mozilla)
-// في ورقة «الإشعارات». لا نحفظ أي اسم ولا رقم هاتف. عند الإرسال نرسل لكل عنوان إشارة فارغة موقّعة،
-// فيستيقظ الهاتف ويسأل الخادم عن نص الإشعار (pushmsg) ثم يعرضه.
+// في ورقة «الإشعارات». لا نحفظ أي اسم ولا رقم هاتف. عند الإرسال نرسل لكل عنوان إشارة موقّعة تحمل نص الإشعار
+// مشفّرًا لذلك الهاتف وحده (الإصدار 7)، فيظهر فورًا. الهاتف الذي لا نملك مفتاحيه (اشترك قبل الإصدار 7) تصله إشارة
+// فارغة، فيستيقظ ويسأل الخادم عن نص الإشعار (pushmsg) ثم يعرضه.
 
 // مفاتيح VAPID: تُنشأ مرة واحدة. المفتاح الخاص في خصائص المشروع فقط، والعام يُرسل للهواتف
 function vapid_(create) {
@@ -744,25 +871,31 @@ function vapid_(create) {
 // شغّلها مرة واحدة من المحرر بعد التحديث إلى الإصدار 6، واسمح بالإذن الجديد «الاتصال بخدمة خارجية»
 function enablePush() {
   vapid_(true);
-  subsSheet_();
+  headers_(subsSheet_(), S_HEAD, S_TEXT);
   UrlFetchApp.fetch("https://fcm.googleapis.com/", { muteHttpExceptions: true });
   Logger.log("✅ الإشعارات جاهزة. من الموقع: فعّل الإشعارات في هاتفك، ثم انشر إعلانًا واختر «أرسل إشعارًا».");
 }
 
 function subsSheet_() {
-  var id = PropertiesService.getScriptProperties().getProperty("SS");
-  if (!id) throw new Error("NOT_SETUP");
-  var ss = SpreadsheetApp.openById(id), sh = ss.getSheetByName(S_SHEET);
+  var ss = ss_(), sh = ss.getSheetByName(S_SHEET);
   if (!sh) { sh = ss.insertSheet(S_SHEET); headers_(sh, S_HEAD, S_TEXT); }
   return sh;
 }
 function subOf_(r) {
   return { id: String(r.id), endpoint: String(r.endpoint || ""), kind: String(r.kind) === "teacher" ? "teacher" : "pupil",
-           teacherId: String(r.teacherId || ""), fails: Number(r.fails) || 0, _r: r };
+           teacherId: String(r.teacherId || ""), fails: Number(r.fails) || 0, keys: String(r.keys || ""), _r: r };
 }
 function subs_(t) { return (t || table_(subsSheet_(), S_HEAD)).rows.map(subOf_).filter(function (s) { return s.endpoint; }); }
 function pushHost_(url) { var m = /^https:\/\/([^\/:?#@]+)(\/|$)/i.exec(String(url || "")); return m ? m[1].toLowerCase() : ""; }
-function subGone_(t, s) { update_(t, s._r, { id: "", endpoint: "", kind: "", teacherId: "", created: "", fails: "" }); }
+function subGone_(t, s) { update_(t, s._r, { id: "", endpoint: "", kind: "", teacherId: "", created: "", fails: "", keys: "" }); }
+// مفتاحا التشفير كما يعطيهما المتصفح (p256dh: نقطة على المنحنى 65 بايت، auth: 16 بايت)، أو "" إن لم يكونا صالحين
+function subKeys_(k) {
+  if (!k || typeof k !== "object") return "";
+  var p = String(k.p256dh || "").replace(/=+$/, ""), a = String(k.auth || "").replace(/=+$/, "");
+  if (!/^[A-Za-z0-9_-]{80,100}$/.test(p) || !/^[A-Za-z0-9_-]{20,24}$/.test(a)) return "";
+  try { if (!ecPoint_(unb64u_(p)) || unb64u_(a).length !== 16) return ""; } catch (e) { return ""; }
+  return p + "." + a;
+}
 
 // قائمة أرقام اشتراكات الأساتذة (صغيرة)، في الذاكرة المؤقتة وخصائص المشروع: لا نقرأ الجدول عند كل إشعار
 function tsubs_() {
@@ -772,28 +905,33 @@ function tsubs_() {
 }
 function tsubsSave_(all) {
   var v = JSON.stringify(all.filter(function (s) { return s.kind === "teacher"; }).map(function (s) { return s.id; }));
-  PropertiesService.getScriptProperties().setProperty("TSUBS", v); CacheService.getScriptCache().put("tsubs", v, CACHE_TTL);
+  var n = JSON.stringify({ all: all.length, teachers: all.filter(function (s) { return s.kind === "teacher"; }).length, enc: all.filter(function (s) { return s.keys; }).length });
+  PropertiesService.getScriptProperties().setProperties({ TSUBS: v, PUSHN: n });
+  CacheService.getScriptCache().putAll({ tsubs: v, pushn: n }, CACHE_TTL);
 }
 
 // اشتراك هاتف (بدون رمز = تلميذ أو ولي؛ مع رمز أستاذ = أستاذ). الهاتف نفسه لا يُسجَّل مرتين
 function pushSub_(req) {
   var endpoint = String(req.endpoint || "").trim();
   if (endpoint.length > 1000 || !PUSH_HOSTS.test(pushHost_(endpoint))) throw new Error("BAD_INPUT");
-  var who = req.code ? auth_(req.code) : null, out;
+  var who = req.code ? auth_(req.code) : null, keys = subKeys_(req.keys), out;
   var lock = lock_();
   try {
-    var t = table_(subsSheet_(), S_HEAD), all = subs_(t);
+    var sh = subsSheet_(); headers_(sh, S_HEAD, S_TEXT);   // عمود keys الجديد (الإصدار 7) في ورقة قديمة
+    var t = table_(sh, S_HEAD), all = subs_(t);
     var old = all.filter(function (s) { return s.endpoint === endpoint; })[0];
     if (!old && /^[A-Za-z0-9_-]{16,40}$/.test(String(req.id || ""))) old = all.filter(function (s) { return s.id === String(req.id); })[0];   // عنوان جديد للهاتف نفسه
     var kind = who ? "teacher" : (old ? old.kind : "pupil"), tid = who ? who.id : (old ? old.teacherId : "");
     if (old) {
-      update_(t, old._r, { endpoint: endpoint, kind: kind, teacherId: tid, fails: 0 });
-      old.endpoint = endpoint; old.kind = kind; out = { id: old.id, kind: kind };
+      var ch = { endpoint: endpoint, kind: kind, teacherId: tid, fails: 0 };
+      if (keys || old.endpoint !== endpoint) ch.keys = keys;   // عنوان جديد بدون مفتاحين: المفتاحان القديمان لم يعودا صالحين
+      update_(t, old._r, ch);
+      old.endpoint = endpoint; old.kind = kind; if ("keys" in ch) old.keys = keys; out = { id: old.id, kind: kind, keys: !!old.keys };
     } else {
       if (all.length >= MAX_SUBS) throw new Error("FULL");
-      var id = b64u_(rand32_()).slice(0, 24);
-      insert_(t, { id: id, endpoint: endpoint, kind: kind, teacherId: tid, created: Date.now(), fails: 0 });
-      all.push({ id: id, kind: kind }); out = { id: id, kind: kind };
+      var id = "s" + b64u_(rand32_()).slice(0, 23);   // يبدأ بحرف: لا يقرؤه الجدول كصيغة أو رقم
+      insert_(t, { id: id, endpoint: endpoint, kind: kind, teacherId: tid, created: Date.now(), fails: 0, keys: keys });
+      all.push({ id: id, kind: kind, keys: keys }); out = { id: id, kind: kind, keys: !!keys };
     }
     tsubsSave_(all);
   } finally { lock.releaseLock(); }
@@ -831,7 +969,7 @@ function pushMsg_(s) {
   return best;
 }
 
-// الإرسال: إشارة فارغة موقّعة لكل هاتف مشترك من الجمهور المختار
+// الإرسال: لكل هاتف مشترك من الجمهور المختار إشارة موقّعة، تحمل النص مشفّرًا إن كان عندنا مفتاحا الهاتف
 function pushSend_(audience, title, text, onlyId) {
   audience = audience === "teachers" ? "teachers" : "all";
   var key = vapid_(true);
@@ -844,26 +982,36 @@ function pushSend_(audience, title, text, onlyId) {
     var v = JSON.stringify(m);
     PropertiesService.getScriptProperties().setProperty("PUSH_" + audience, v); CacheService.getScriptCache().put("push:" + audience, v, CACHE_TTL);
   }
-  var jwts = {}, reqs = list.map(function (s) {
+  // مفتاح مؤقت واحد لهذا الإرسال (لكل هاتف ملحه العشوائي ومفتاحه المشتق الخاص)؛ التشفير يتوقف بعد PUSH_ENC_MS
+  var plain = utf8_(JSON.stringify(m)), t0 = Date.now(), eph = null, jwts = {}, enc = [];
+  var reqs = list.map(function (s, i) {
     var aud = "https://" + pushHost_(s.endpoint);
-    if (!jwts[aud]) jwts[aud] = vapidJwt_(aud, key);
-    return { url: s.endpoint, method: "post", headers: { Authorization: "vapid t=" + jwts[aud] + ", k=" + key.pub, TTL: String(PUSH_TTL), Urgency: "high" },
-             muteHttpExceptions: true, followRedirects: false };
-  });
-  var codes = [];
-  for (var i = 0; i < reqs.length; i += 100) {
-    var part = reqs.slice(i, i + 100), res;
-    try { res = UrlFetchApp.fetchAll(part).map(function (r) { return r.getResponseCode(); }); }
-    catch (e) {
-      if (/permission|authori|إذن|صلاحي/i.test(String(e && e.message))) throw new Error("PUSH_AUTH");
-      res = part.map(function (q) { try { return UrlFetchApp.fetch(q.url, q).getResponseCode(); } catch (x) { return 0; } });
+    if (!jwts[aud]) jwts[aud] = jwt_(aud, key);
+    var q = { url: s.endpoint, method: "post", headers: { Authorization: "vapid t=" + jwts[aud] + ", k=" + key.pub, TTL: String(PUSH_TTL), Urgency: "high" },
+              muteHttpExceptions: true, followRedirects: false };
+    enc[i] = false;
+    if (s.keys && Date.now() - t0 < PUSH_ENC_MS) {
+      try {
+        if (!eph) eph = pushEphemeral_();
+        var k = s.keys.split("."), body = pushEncrypt_(plain, k[0], k[1], eph);
+        if (body) { q.headers["Content-Encoding"] = "aes128gcm"; q.contentType = "application/octet-stream"; q.payload = Utilities.newBlob(s8_(body), "application/octet-stream"); enc[i] = true; }
+      } catch (e) {}
     }
-    codes = codes.concat(res);
+    return q;
+  });
+  var codes = pushFetch_(reqs);
+  // رفضَ مزوّدُ الإشعارات النص المشفّر (أو تعذّر إرساله): نعيد إشارة فارغة لذلك الهاتف، فيسأل الخادم عن النص
+  var again = [];
+  list.forEach(function (s, i) { if (enc[i] && (codes[i] === 0 || codes[i] === 400 || codes[i] === 413 || codes[i] === 415)) again.push(i); });
+  if (again.length) {
+    var rc = pushFetch_(again.map(function (i) { var q = reqs[i], h = {}; for (var x in q.headers) if (x !== "Content-Encoding") h[x] = q.headers[x];
+      return { url: q.url, method: "post", headers: h, muteHttpExceptions: true, followRedirects: false }; }));
+    again.forEach(function (i, j) { codes[i] = rc[j]; enc[i] = false; });
   }
-  var sent = 0, removed = 0, failed = 0, changed = [];
+  var sent = 0, removed = 0, failed = 0, instant = 0, changed = [];
   list.forEach(function (s, i) {
     var code = codes[i];
-    if (code >= 200 && code < 300) { sent++; if (s.fails) changed.push([s, { fails: 0 }]); }
+    if (code >= 200 && code < 300) { sent++; if (enc[i]) instant++; if (s.fails) changed.push([s, { fails: 0 }]); }
     else if (code === 404 || code === 410) { removed++; changed.push([s, null]); }
     else { failed++; changed.push(s.fails + 1 >= 5 ? [s, null] : [s, { fails: s.fails + 1 }]); }
   });
@@ -876,12 +1024,44 @@ function pushSend_(audience, title, text, onlyId) {
       tsubsSave_(Object.keys(byId).map(function (k) { return byId[k]; }));
     } finally { lock.releaseLock(); }
   }
-  return { total: list.length, sent: sent, removed: removed, failed: failed };
+  return { total: list.length, sent: sent, removed: removed, failed: failed, instant: instant };
 }
+// إرسال الطلبات 100 في كل دفعة؛ يعيد رمز الرد لكل طلب (0 = تعذّر الإرسال)
+function pushFetch_(reqs) {
+  var codes = [];
+  for (var i = 0; i < reqs.length; i += 100) {
+    var part = reqs.slice(i, i + 100), res;
+    try { res = UrlFetchApp.fetchAll(part).map(function (r) { return r.getResponseCode(); }); }
+    catch (e) {
+      if (/permission|authori|إذن|صلاحي/i.test(String(e && e.message))) throw new Error("PUSH_AUTH");
+      res = part.map(function (q) { try { return UrlFetchApp.fetch(q.url, q).getResponseCode(); } catch (x) { return 0; } });
+    }
+    codes = codes.concat(res);
+  }
+  return codes;
+}
+// رمز VAPID لكل مزوّد يُعاد استعماله حتى 6 ساعات (صالح 12 ساعة): التوقيع يأخذ وقتًا
+function jwt_(aud, key) {
+  var c = CacheService.getScriptCache(), k = "jwt:" + String(key.pub).slice(-16) + ":" + aud, v = c.get(k);
+  if (v) return v;
+  v = vapidJwt_(aud, key);
+  try { c.put(k, v, CACHE_TTL - 120); } catch (e) {}
+  return v;
+}
+// عدد الهواتف المشتركة (يُحفظ عند كل اشتراك أو إرسال، فلا نقرأ الجدول)
 function pushCounts_() {
-  var all = [];
-  try { all = subs_(); } catch (e) {}
-  return { all: all.length, teachers: all.filter(function (s) { return s.kind === "teacher"; }).length, ready: !!vapid_(false) };
+  var c = CacheService.getScriptCache(), v = c.get("pushn"), n = null;
+  if (v === null) v = PropertiesService.getScriptProperties().getProperty("PUSHN");
+  try { n = v ? JSON.parse(v) : null; } catch (e) { n = null; }
+  if (!n) {   // أول مرة (قبل أي اشتراك في الإصدار 7): نعدّ من الجدول مرة واحدة ونحفظ العدد
+    var lock = LockService.getScriptLock(), mine = lock.tryLock(0), all = [];
+    try {
+      try { all = subs_(); } catch (e) {}
+      n = { all: all.length, teachers: all.filter(function (s) { return s.kind === "teacher"; }).length, enc: all.filter(function (s) { return s.keys; }).length };
+      if (mine) { v = JSON.stringify(n); PropertiesService.getScriptProperties().setProperty("PUSHN", v); c.put("pushn", v, CACHE_TTL); }
+    } finally { if (mine) lock.releaseLock(); }
+  }
+  return { all: n.all, teachers: n.teachers, enc: n.enc || 0, ready: !!vapid_(false) };
 }
 
 // ---------------- الإشعارات: التوقيع (ES256 على المنحنى P-256) ----------------
@@ -978,14 +1158,137 @@ function vapidJwt_(aud, key) {
   return input + "." + b64u_(ecSign_(ascii_(input), key.d));
 }
 
+// ---------------- الإشعارات: تشفير نص الرسالة (معيار RFC 8291، aes128gcm) ----------------
+// النص يُرسل مشفّرًا داخل الإشعار نفسه، فيظهر على الهاتف فورًا دون أن يسأل الخادم.
+// لا يستطيع قراءته إلا الهاتف المشترك (مفتاحاه p256dh وauth يعطيهما المتصفح عند الاشتراك).
+// Google Apps Script لا يوفّر AES، فهو مكتوب هنا (AES-128 وGCM)، وكل شيء آخر من Utilities.
+
+var AES_SBOX_ = null;
+function aesTables_() {
+  if (AES_SBOX_) return AES_SBOX_;
+  var s = [], p = 1, q = 1;
+  // توليد صندوق الاستبدال (S-box) حسابيًا بدل جدول من 256 رقمًا
+  do {
+    p = p ^ ((p << 1) & 255) ^ (p & 128 ? 0x1b : 0);
+    q ^= q << 1; q ^= q << 2; q ^= q << 4; q &= 255; if (q & 128) q ^= 0x09;
+    var x = q ^ ((q << 1) | (q >> 7)) ^ ((q << 2) | (q >> 6)) ^ ((q << 3) | (q >> 5)) ^ ((q << 4) | (q >> 4));
+    s[p] = (x ^ 0x63) & 255;
+  } while (p !== 1);
+  s[0] = 0x63;
+  AES_SBOX_ = s;
+  return s;
+}
+function aesKey_(key) {   // 16 بايت ← 11 مفتاحًا فرعيًا (176 بايت)
+  var S = aesTables_(), w = key.slice(0, 16), rcon = 1;
+  for (var i = 16; i < 176; i += 4) {
+    var t = w.slice(i - 4, i);
+    if (i % 16 === 0) { t = [S[t[1]] ^ rcon, S[t[2]], S[t[3]], S[t[0]]]; rcon = (rcon << 1) ^ (rcon & 128 ? 0x11b : 0); }
+    for (var j = 0; j < 4; j++) w.push(w[i - 16 + j] ^ t[j]);
+  }
+  return w;
+}
+function xt_(b) { return ((b << 1) ^ (b & 128 ? 0x1b : 0)) & 255; }
+function aesBlock_(w, inp) {
+  var S = aesTables_(), st = [], r, c, i;
+  for (i = 0; i < 16; i++) st[i] = inp[i] ^ w[i];
+  for (r = 1; r <= 10; r++) {
+    var t = [];
+    for (i = 0; i < 16; i++) t[i] = S[st[(i + 4 * (i % 4)) % 16]];   // SubBytes + ShiftRows (الأعمدة متتالية)
+    if (r < 10) {
+      for (c = 0; c < 4; c++) {
+        var a0 = t[4 * c], a1 = t[4 * c + 1], a2 = t[4 * c + 2], a3 = t[4 * c + 3], all = a0 ^ a1 ^ a2 ^ a3;
+        t[4 * c] = a0 ^ all ^ xt_(a0 ^ a1); t[4 * c + 1] = a1 ^ all ^ xt_(a1 ^ a2);
+        t[4 * c + 2] = a2 ^ all ^ xt_(a2 ^ a3); t[4 * c + 3] = a3 ^ all ^ xt_(a3 ^ a0);
+      }
+    }
+    for (i = 0; i < 16; i++) st[i] = t[i] ^ w[16 * r + i];
+  }
+  return st;
+}
+// الضرب في GF(2^128) لحساب بصمة GCM (GHASH)
+function gmul_(x, y) {
+  var B = BigInt, R = B("0xe1000000000000000000000000000000"), z = B(0), v = y, one = B(1);
+  for (var i = 127; i >= 0; i--) {
+    if ((x >> B(i)) & one) z ^= v;
+    v = (v & one) ? (v >> one) ^ R : v >> one;
+  }
+  return z;
+}
+function gcmEncrypt_(key, iv, pt) {   // يعيد النص المشفّر + بصمة 16 بايت
+  var w = aesKey_(key), H = bigOf_(aesBlock_(w, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]));
+  var j0 = iv.concat([0, 0, 0, 1]), ct = [], ctr = j0.slice();
+  for (var i = 0; i < pt.length; i += 16) {
+    for (var k = 15; k >= 12; k--) { ctr[k] = (ctr[k] + 1) & 255; if (ctr[k]) break; }
+    var ks = aesBlock_(w, ctr);
+    for (var j = 0; j < 16 && i + j < pt.length; j++) ct.push(pt[i + j] ^ ks[j]);
+  }
+  var y = BigInt(0);
+  for (var b = 0; b < ct.length; b += 16) { var blk = ct.slice(b, b + 16); while (blk.length < 16) blk.push(0); y = gmul_(y ^ bigOf_(blk), H); }
+  y = gmul_(y ^ BigInt(ct.length * 8), H);   // طول البيانات الإضافية 0، وطول النص بالبتات
+  var s = bigOf_(aesBlock_(w, j0)) ^ y;
+  return ct.concat(bytesOf_(s, 16));
+}
+function hkdf_(salt, ikm, info, len) { return hmac256_(info.concat([1]), hmac256_(ikm, salt)).slice(0, len); }
+function utf8_(s) {
+  var b; s = String(s);
+  try { b = unescape(encodeURIComponent(s)); } catch (e) { b = unescape(encodeURIComponent(s.replace(/[\ud800-\udfff]/g, "\ufffd"))); }   // نصف رمز تعبيري قُطع عند الحد الأقصى للطول
+  var o = []; for (var i = 0; i < b.length; i++) o.push(b.charCodeAt(i)); return o;
+}
+// مفتاح مؤقت لكل إرسال (يُستعمل لكل الهواتف في ذلك الإرسال)
+function pushEphemeral_() {
+  var E = ec_(), d;
+  do { d = bigOf_(rand32_()) % E.n; } while (d === E.Z);
+  var Q = ecAffine_(ecMul_(d, E.G));
+  return { d: d, pub: [4].concat(bytesOf_(Q[0], 32), bytesOf_(Q[1], 32)) };
+}
+function ecPoint_(u) {   // 65 بايت ← نقطة على المنحنى، أو null إن لم تكن صالحة
+  if (!u || u.length !== 65 || u[0] !== 4) return null;
+  var E = ec_(), x = bigOf_(u.slice(1, 33)), y = bigOf_(u.slice(33)), p = E.p;
+  if (x >= p || y >= p) return null;
+  var lhs = y * y % p, rhs = ecMod_(x * x % p * x - E.H * x + E.b, p);
+  return lhs === rhs ? [x, y, E.O] : null;
+}
+// تشفير رسالة لهاتف واحد: salt(16) || rs(4) || idlen(1) || مفتاحنا المؤقت(65) || النص المشفّر
+function pushEncrypt_(plain, uaPubB64, authB64, eph) {
+  var ua = unb64u_(uaPubB64), auth = unb64u_(authB64), P = ecPoint_(ua);
+  if (!P || auth.length !== 16) return null;
+  var shared = bytesOf_(ecAffine_(ecMul_(eph.d, P))[0], 32);
+  var ikm = hkdf_(auth, shared, ascii_("WebPush: info").concat([0], ua, eph.pub), 32);
+  var salt = rand32_().slice(0, 16);
+  var cek = hkdf_(salt, ikm, ascii_("Content-Encoding: aes128gcm").concat([0]), 16);
+  var nonce = hkdf_(salt, ikm, ascii_("Content-Encoding: nonce").concat([0]), 12);
+  var body = gcmEncrypt_(cek, nonce, plain.concat([2]));
+  return salt.concat([0, 0, 16, 0, 65], eph.pub, body);
+}
+
 // ---------------- أدوات ----------------
 
-function sheet_(name) {
+// فتح الجدول بطيء (ثوانٍ): مرة واحدة فقط في كل طلب
+var SS_ = null;
+function ss_() {
+  if (SS_) return SS_;
   var id = PropertiesService.getScriptProperties().getProperty("SS");
   if (!id) throw new Error("NOT_SETUP");
-  var sh = SpreadsheetApp.openById(id).getSheetByName(name);
+  SS_ = SpreadsheetApp.openById(id);
+  return SS_;
+}
+function sheet_(name) {
+  var sh = ss_().getSheetByName(name);
   if (!sh) throw new Error("NOT_SETUP");
   return sh;
+}
+// نص طويل في عدة خصائص (حد Google: 9KB لكل خاصية)
+function propsPut_(key, s) {
+  var o = {}, n = 0;
+  for (var i = 0; i < s.length; i += 2500) o[key + ":" + (n++)] = s.slice(i, i + 2500);
+  o[key] = String(n);
+  PropertiesService.getScriptProperties().setProperties(o);
+}
+function propsGet_(key) {
+  var all = PropertiesService.getScriptProperties().getProperties(), n = Number(all[key] || 0), s = "";
+  if (!n) return null;
+  for (var i = 0; i < n; i++) { if (all[key + ":" + i] == null) return null; s += all[key + ":" + i]; }
+  return s;
 }
 function folder_() {
   var id = PropertiesService.getScriptProperties().getProperty("FOLDER");

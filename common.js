@@ -226,6 +226,7 @@ var D = (function () {
       lastNews = Array.isArray(j.news) ? j.news : null;
       if (typeof j.push === "string") pushKey(j.push);
       try { localStorage.setItem(CK, JSON.stringify({ at: Date.now(), lessons: j.lessons, news: j.news || [], v: j.v || 1 })); } catch (e) {}
+      if (j.v >= 7) pushSync();
       return j.lessons;
     });
   }
@@ -295,22 +296,53 @@ var D = (function () {
         return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; }).then(function () { return reg.pushManager.subscribe(opts); });
       });
     }).then(function (sub) {
-      var o = pushGet(), body = { action: "pushSub", endpoint: sub.endpoint, id: o.id || "" };
+      var o = pushGet(), body = { action: "pushSub", endpoint: sub.endpoint, id: o.id || "", keys: subKeys(sub) };
       if (code) body.code = code;
       return call(body).then(function (j) {
-        o = pushGet(); o.id = j.id; o.kind = j.kind; pushPut(o);
+        o = pushGet(); o.id = j.id; o.kind = j.kind; o.kk = j.keys ? 1 : 0; pushPut(o);
         return swPushInfo({ s: j.id, api: SITE.apiUrl, key: key }).then(function () { return j; });
       });
     }, function (e) { throw e && e.code ? e : pushErr("PUSH_FAIL"); });
+  }
+  /* مفتاحا التشفير اللذان يعطيهما المتصفح: بهما يرسل الخادم (الإصدار 7) نص الإشعار مشفّرًا داخله، فيظهر فورًا */
+  function subKeys(sub) { try { var k = sub.toJSON().keys; return k && k.p256dh && k.auth ? { p256dh: k.p256dh, auth: k.auth } : null; } catch (e) { return null; } }
+  /* هاتف اشترك قبل الإصدار 7: نرسل مفتاحيه مرة واحدة بصمت (بدون أي سؤال للمستخدم: الإذن موجود أصلًا) */
+  function pushSync() {
+    var o = pushGet();
+    if (!o.id || o.kk || !pushSupported() || Notification.permission !== "granted") return;
+    try { if (sessionStorage.getItem("doros-psync")) return; sessionStorage.setItem("doros-psync", "1"); } catch (e) { return; }
+    navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.pushManager.getSubscription() : null; }).then(function (sub) {
+      var k = sub && subKeys(sub);
+      if (!k) return;
+      return call({ action: "pushSub", endpoint: sub.endpoint, id: o.id, keys: k }).then(function (j) {
+        var n = pushGet(); if (n.id === j.id) { n.kk = j.keys ? 1 : 0; pushPut(n); }
+      });
+    }).catch(function () {});
+  }
+  /* بطاقة «فعّل الإشعارات» لا تظهر في أول زيارة: فقط ابتداءً من اليوم الثاني، أو بعد أن يفتح التلميذ درسًا */
+  var FIRST = (function () {
+    try {
+      var f = localStorage.getItem("doros-first");
+      if (!f) { var v = lsGet(VD, {}); f = v.day && v.day < today() ? v.day : localStorage.getItem(CK) ? "2000-01-01" : today(); localStorage.setItem("doros-first", f); }
+      return f;
+    } catch (e) { return today(); }
+  })();
+  function pushInvite() {
+    if (FIRST < today()) return true;
+    var s = lsGet(VS, {}); for (var k in s) return true;
+    return saved().length > 0;
   }
   function pushOff() {
     var o = pushGet();
     return (pushSupported() ? navigator.serviceWorker.getRegistration() : Promise.resolve(null))
       .then(function (r) { return r ? r.pushManager.getSubscription() : null; }).then(function (s) { return s ? s.unsubscribe() : null; }).catch(function () {})
       .then(function () { return o.id ? call({ action: "pushUnsub", id: o.id }).catch(function () {}) : null; })
-      .then(function () { o = pushGet(); delete o.id; delete o.kind; pushPut(o); return swPushInfo(null); });
+      .then(function () { o = pushGet(); delete o.id; delete o.kind; delete o.kk; pushPut(o); return swPushInfo(null); });
   }
   function pushInfo() { return pushGet(); }
+  /* زر يظهر فجأة تحت إصبع المستخدم لا يُحسب ضغطه قبل 0.7 ثانية (ضغطة كانت موجهة لشيء آخر) */
+  function armed(el) { var t = +(el && el.getAttribute("data-shown")) || 0; return Date.now() - t > 700; }
+  function arm(el) { if (el && !el.getAttribute("data-shown")) el.setAttribute("data-shown", String(Date.now())); }
 
   /* تطبيق قابل للتثبيت: تسجيل عامل الخدمة (يحفظ الصفحات والدروس للعمل بدون إنترنت) */
   var installEvt = null, installCbs = [];
@@ -344,5 +376,6 @@ var D = (function () {
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
     inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, saved:saved, isSaved:isSaved, toggleSaved:toggleSaved, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
     canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS,
-    pushKey:pushKey, pushStatus:pushStatus, pushOn:pushOn, pushOff:pushOff, pushInfo:pushInfo, pushSupported:pushSupported };
+    pushKey:pushKey, pushStatus:pushStatus, pushOn:pushOn, pushOff:pushOff, pushInfo:pushInfo, pushSupported:pushSupported,
+    pushSync:pushSync, pushInvite:pushInvite, arm:arm, armed:armed };
 })();

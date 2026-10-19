@@ -46,7 +46,7 @@
     <ol class="pst" style="margin:0">
       <li><b>من كمبيوتر</b>: افتح مشروع الخادم على <a href="https://script.google.com/home" target="_blank" rel="noopener">script.google.com ↗</a>.</li>
       <li>في المحرر: حدّد الكل واحذفه، ثم الصق الكود (الخطوة 2 ← «من حاسوب: نسخ الكود كاملًا»)، واحفظ 💾.</li>
-      <li><b>للإصدار 6، مرة واحدة وقبل النشر</b>: من القائمة في الأعلى اختر الدالة <b class="mono">enablePush</b> ← <b>تشغيل</b>. سيطلب Google إذنًا جديدًا (الاتصال بخدمة خارجية، لإرسال الإشعارات إلى Google وApple): <b>Advanced / إعدادات متقدمة</b> ← <b>الانتقال إلى المشروع</b> ← <b>سماح</b>. في السجل يظهر «✅ الإشعارات جاهزة».</li>
+      <li><b>فقط إن كان خادمك على الإصدار 5 أو أقدم</b> (مرة واحدة وقبل النشر): من القائمة في الأعلى اختر الدالة <b class="mono">enablePush</b> ← <b>تشغيل</b>. سيطلب Google إذنًا جديدًا (الاتصال بخدمة خارجية، لإرسال الإشعارات إلى Google وApple): <b>Advanced / إعدادات متقدمة</b> ← <b>الانتقال إلى المشروع</b> ← <b>سماح</b>. في السجل يظهر «✅ الإشعارات جاهزة».<br><small style="color:var(--muted)">من الإصدار 6 إلى 7: لا دالة تشغّلها ولا إذن جديد، انتقل مباشرة إلى النشر.</small></li>
       <li>انشر الإصدار الجديد:</li>
     </ol>
     <p class="path" style="margin:0">نشر ← إدارة عمليات النشر ← ✏️ ← الإصدار: <b>إصدار جديد</b> ← نشر</p>
@@ -97,9 +97,12 @@ var MAXP=13000,PARTS=[];
 function split(t){var lines=t.replace(/\s+$/,"").split("\n"),blocks=[],cur=[];
  lines.forEach(function(l){if(/^(function |var |\/\/ )/.test(l)&&cur.length&&!/^\/\/ /.test(cur[cur.length-1]||"x")){blocks.push(cur.join("\n"));cur=[]}cur.push(l)});
  if(cur.length)blocks.push(cur.join("\n"));
- var total=t.length,n=Math.max(1,Math.ceil(total/MAXP)),target=Math.ceil(total/n),parts=[],p="";
- blocks.forEach(function(b){if(p&&p.length+b.length+1>target&&parts.length<n-1){parts.push(p);p=""}p+=(p?"\n":"")+b});
- if(p)parts.push(p);
+ var total=t.length,parts;
+ /* أقل عدد من الأجزاء بحيث لا يتجاوز أي جزء الحد (الجزء الأخير كان يأخذ كل الباقي) */
+ for(var n=Math.max(1,Math.ceil(total/MAXP));n<40;n++){var target=Math.ceil(total/n),p="";parts=[];
+  blocks.forEach(function(b){if(p&&p.length+b.length+1>target&&parts.length<n-1){parts.push(p);p=""}p+=(p?"\n":"")+b});
+  if(p)parts.push(p);
+  if(parts.every(function(x){return x.length<=MAXP}))break}
  return parts.map(function(x,i){return i<parts.length-1?x+"\n// ---- نهاية الجزء "+(i+1)+" من "+parts.length+": الصق الجزء "+(i+2)+" تحت هذا السطر مباشرة ----\n":x+"\n"})}
 function copyText(t,ok){function fb(){var a=document.createElement("textarea");a.value=t;a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){}document.body.removeChild(a)}
  if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,fb);else fb()}

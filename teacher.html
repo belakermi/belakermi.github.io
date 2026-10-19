@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="stylesheet" href="style.css?v=9">
 <script src="config.js"></script>
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script src="imgpdf.js?v=4"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -115,6 +115,17 @@ function hash(s){var h=5381;s=String(s||"");for(var i=0;i<s.length;i++)h=((h<<5)
 function ls(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||"null");if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
 function dkey(){return"doros-draft-"+hash(S.code)}
 function lkey(){return"doros-last-"+hash(S.code)}
+/* ---------- نسخة من فضاء الأستاذ في هاتفه: تظهر فورًا عند الفتح، ثم تُحدَّث من الخادم في الخلفية ----------
+   تُحفظ حيث يُحفظ الرمز (الهاتف إن اختار «تذكّرني»، وإلا حتى إغلاق المتصفح). رموز الأساتذة الآخرين لا تُحفظ فيها أبدًا */
+function ckey(c){return"doros-tc-"+hash(c||S.code)}
+function cstore(){try{return localStorage.getItem("doros-code")?localStorage:sessionStorage}catch(e){return null}}
+function cacheRead(c){try{var st=cstore(),o=st&&JSON.parse(st.getItem(ckey(c))||"null");return o&&o.me&&o.me.name?o:null}catch(e){return null}}
+var cacheT=null;
+function cacheSoon(){clearTimeout(cacheT);cacheT=setTimeout(cacheSave,400)}
+function cacheSave(){clearTimeout(cacheT);if(!S.me||!S.code)return;var o={me:S.me,at:Date.now(),tnews:TN.list,mine:S.mine};
+ if(S.me.role==="admin"){o.news=NW.list;o.storage=S.storage;o.visits=S.visits;o.pushCounts=S.pushCounts}
+ try{var st=cstore(),s=JSON.stringify(o);if(s.length>1500000){o.mine=null;s=JSON.stringify(o)}if(st)st.setItem(ckey(),s)}catch(e){}}
+function cacheDrop(c){try{localStorage.removeItem(ckey(c));sessionStorage.removeItem(ckey(c))}catch(e){}}
 /* الفصل حسب التاريخ: سبتمبر–ديسمبر الأول، جانفي–منتصف مارس الثاني، بعدها الثالث (جويلية وأوت: تحضير السنة الجديدة) */
 function termNow(){var d=new Date(),m=d.getMonth()+1;return m>=7?1:m<=2?2:m===3?(d.getDate()<20?2:3):3}
 function mobile(){return/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||!!(window.matchMedia&&matchMedia("(pointer:coarse)").matches)}
@@ -128,7 +139,7 @@ function blankForm(){var s=(S.me&&S.me.subjects||"").split(",")[0]||"",last=ls(l
  return f}
 function v3(){return S.me&&S.me.v>=3}
 function v4(){return S.me&&S.me.v>=4}
-var LATEST=6;
+var LATEST=7;
 function v6(){return S.me&&S.me.v>=6}
 function isBem(t){return t==="bem"||t==="bemc"}
 function msg(t,ok){S.msg={t:t,ok:!!ok}}
@@ -160,11 +171,15 @@ function render(){
  var need=LATEST,feat=[];
  if(sv<3)feat.push("نوع المحتوى، المقطع، مواضيع BEM، الإعلانات");if(sv<4)feat.push("منع تكرار النشر عند انقطاع الإنترنت، تحمّل الزحام، النسخة الاحتياطية، زر «تحديث الموقع»");if(!D.statsOn()&&sv<5)feat.push("عدد مشاهدات الدروس وعدد زوار الموقع");
  if(sv<6)feat.push("الإشعارات على هواتف التلاميذ والأساتذة، ورسائل للأساتذة فقط");
+ if(sv<7)feat.push("فضاء أساتذة أسرع بكثير، وإشعار يظهر فورًا بنصه");
  if(S.me.role==="admin"&&sv<need)o+='<div class="upd">الخادم على الإصدار '+sv+'. حدّث كود الخادم إلى <b>الإصدار '+LATEST+'</b> لتفعيل: '+feat.join("، ")+'. <a href="setup.html">طريقة التحديث</a></div>';
- if(v6())o+='<div id="tnews"></div><div id="tpush"></div>';
+ if(S.net)o+='<div class="msg" id="netn" role="status">'+esc(S.net)+'</div>';
+ if(v6())o+='<div id="tnews"></div>';
  o+='<nav class="tabs" role="tablist">'+tab("new",S.form&&S.form.id?"تعديل درس":"درس جديد")+tab("mine",S.me.role==="admin"?"كل الدروس":"دروسي")+(S.me.role==="admin"?tab("news","الإعلانات")+tab("team","الأساتذة"):"")+'</nav>';
  if(S.msg)o+='<div class="'+(S.msg.ok?"ok-msg":"msg")+'" role="status">'+esc(S.msg.t)+'</div>';
  o+='<section id="pane"></section>';
+ /* في الأسفل: بطاقة تظهر بعد لحظة في الأعلى كانت تُزيح الأزرار تحت إصبع الأستاذ */
+ if(v6())o+='<div id="tpush"></div>';
  app.innerHTML=o;
  if(S.tab==="new")renderForm();else if(S.tab==="mine")renderMine();else if(S.tab==="news")renderNewsAdmin();else renderTeam();
  if(v6()){drawTnews();drawTpush()}
@@ -172,8 +187,8 @@ function render(){
 /* ---- رسائل الإدارة للأساتذة فقط (خادم الإصدار 6) ---- */
 var TN={list:null,loading:false};
 function seenTn(){return ls("doros-tnews-seen")||[]}
-function loadTnews(){if(TN.loading||!v6())return;TN.loading=true;
- D.call({action:"teacherNews",code:S.code}).then(function(j){TN.loading=false;TN.list=j.news||[];drawTnews()},function(){TN.loading=false})}
+function loadTnews(){if(TN.loading||!v6()||S.booting)return;TN.loading=true;
+ D.call({action:"teacherNews",code:S.code}).then(function(j){TN.loading=false;TN.list=j.news||[];drawTnews();cacheSoon()},function(){TN.loading=false})}
 function drawTnews(){var el=$("tnews");if(!el)return;var L=TN.list||[];if(!L.length){el.innerHTML="";return}
  var seen=seenTn(),fresh=L.filter(function(n){return seen.indexOf(n.id)<0});
  el.innerHTML='<details class="card tnews"'+(fresh.length?" open":"")+'><summary>📢 رسائل الإدارة للأساتذة'+(fresh.length?' <span class="pill new">'+fresh.length+' جديدة</span>':' ('+L.length+')')+'</summary>'
@@ -181,15 +196,17 @@ function drawTnews(){var el=$("tnews");if(!el)return;var L=TN.list||[];if(!L.len
  if(fresh.length)setTimeout(function(){var s2=seenTn();L.forEach(function(n){if(s2.indexOf(n.id)<0)s2.push(n.id)});ls("doros-tnews-seen",s2.slice(-200))},3000)}
 /* ---- إشعارات هذا الهاتف (للأستاذ) ---- */
 var TP={busy:false,out:"",err:""};
+function tpHidden(){try{return Date.now()-(+localStorage.getItem("doros-tpush-hide")||0)<7*864e5}catch(e){return false}}
 function drawTpush(){var el=$("tpush");if(!el)return;
- D.pushStatus().then(function(st){if(!$("tpush"))return;
-  if(st==="nokey"||st==="unsupported"){el.innerHTML="";return}
-  var info=D.pushInfo(),t,b="";
+ D.pushStatus().then(function(st){el=$("tpush");if(!el)return;
+  var info=D.pushInfo(),on=st==="on"&&info.kind==="teacher";
+  if(st==="nokey"||st==="unsupported"||(!on&&tpHidden()&&!TP.err&&!TP.busy)){el.innerHTML="";return}
+  var t,b="";
   if(st==="on"&&info.kind==="teacher"){t="🔔 إشعارات الأساتذة مفعّلة على هذا الهاتف ✓";b='<button class="btn quiet sm" data-a="pTest"'+(TP.busy?" disabled":"")+'>تجربة</button><button class="btn quiet sm" data-a="pOff"'+(TP.busy?" disabled":"")+'>إيقاف</button>'}
   else if(st==="install")t="🔔 لتصلك الإشعارات في آيفون: ثبّت الموقع على الشاشة الرئيسية (زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية») وافتحه من هناك.";
   else if(st==="denied")t="🔔 "+D.errText({code:"DENIED"});
-  else{t="🔔 فعّل الإشعارات على هذا الهاتف لتصلك رسائل الإدارة وإعلانات المؤسسة.";b='<button class="btn sm" data-a="pOn"'+(TP.busy?" disabled":"")+'>'+(TP.busy?"جاري…":"فعّل")+'</button>'}
-  el.innerHTML='<div class="tpush"><span>'+esc(t)+'</span><span class="tpb">'+b+'</span>'+(TP.out?'<small class="okt">'+esc(TP.out)+'</small>':'')+(TP.err?'<small class="errt">'+esc(TP.err)+'</small>':'')+'</div>'})}
+  else{t="🔔 فعّل الإشعارات على هذا الهاتف لتصلك رسائل الإدارة وإعلانات المؤسسة.";b='<button class="btn sm" data-a="pOn"'+(TP.busy?" disabled":"")+'>'+(TP.busy?"جاري…":"فعّل")+'</button>'+(TP.busy?'':'<button class="btn quiet sm" data-a="pHide">لاحقًا</button>')}
+  el.innerHTML='<div class="tpush"><span>'+esc(t)+'</span><span class="tpb">'+b+'</span>'+(TP.out?'<small class="okt">'+esc(TP.out)+'</small>':'')+(TP.err?'<small class="errt">'+esc(TP.err)+'</small>':'')+'</div>';D.arm(el)})}
 function tab(k,t){return'<button role="tab" data-a="tab" data-k="'+k+'" aria-selected="'+(S.tab===k)+'">'+t+'</button>'}
 
 function renderLogin(){
@@ -256,17 +273,20 @@ function refreshUnits(){var dl=$("units");if(!dl||!S.form||!$("lf"))return;readF
    بعد أي تغيير (نشر، حذف، إضافة) نرفع «الجيل» فيُهمَل أي رد قديم كان في الطريق، حتى لا يمحو التغيير */
 var G={mine:0,team:0,news:0};
 function fresh(k){G[k]++;if(k==="mine")S._loading=false;else if(k==="team")S._tload=false;else NW.loading=false}
-function loadMine(){if(S._loading)return;S._loading=true;S.mineErr=null;var g=G.mine;
- D.call({action:"mine",code:S.code}).then(function(j){if(g!==G.mine)return;S._loading=false;S.mine=j.lessons;S.viewSrc=null;if(S.tab==="mine")renderMine();else refreshUnits();statsViews(g)},
+function loadMine(){if(S._loading||S.booting)return;S._loading=true;S.mineErr=null;var g=G.mine;
+ D.call({action:"mine",code:S.code}).then(function(j){if(g!==G.mine)return;S._loading=false;S.mine=j.lessons;S.viewSrc=null;if(S.tab==="mine")renderMine();else refreshUnits();statsViews(g);cacheSoon()},
   function(e){if(g!==G.mine)return;S._loading=false;S.mineErr=D.errText(e);if(S.tab==="mine")renderMine()})}
 /* المدير: تحميل الأساتذة والإعلانات مسبقًا بعد الدخول، لتفتح التبويبات فورًا */
-function loadTeachers(){if(S._tload)return;S._tload=true;S.tErr=null;var g=G.team;
- D.call({action:"teachers",code:S.code}).then(function(j){if(g!==G.team)return;S._tload=false;S.teachers=j.teachers;S.storage=j.storage||null;S.visits=j.visits||null;S.pushCounts=j.push||null;if(S.tab==="team")renderTeam()},
+function loadTeachers(){if(S._tload||S.booting)return;S._tload=true;S.tErr=null;var g=G.team;
+ D.call({action:"teachers",code:S.code}).then(function(j){if(g!==G.team)return;S._tload=false;S.teachers=j.teachers;S.storage=j.storage||null;S.visits=j.visits||null;S.pushCounts=j.push||null;if(S.tab==="team"&&!typing("tf"))renderTeam();cacheSoon()},
   function(e){if(g!==G.team)return;S._tload=false;S.tErr=D.errText(e);if(S.tab==="team")renderTeam()})}
-function loadNews(){if(NW.loading||!v3())return;NW.loading=true;NW.err=null;var g=G.news;
- D.call({action:"news",code:S.code}).then(function(j){if(g!==G.news)return;NW.loading=false;NW.list=j.news;if(S.tab==="news")renderNewsAdmin()},
+function loadNews(){if(NW.loading||!v3()||S.booting)return;NW.loading=true;NW.err=null;var g=G.news;
+ D.call({action:"news",code:S.code}).then(function(j){if(g!==G.news)return;NW.loading=false;NW.list=j.news;if(S.tab==="news"&&!typing("nf"))renderNewsAdmin();cacheSoon()},
   function(e){if(g!==G.news)return;NW.loading=false;NW.err=D.errText(e);if(S.tab==="news")renderNewsAdmin()})}
-function prefetch(){if(!S.me)return;loadMine();loadTnews();if(S.me.role==="admin"){loadTeachers();loadNews()}}
+/* ما لم يأتِ مع الدخول (خادم قبل الإصدار 7) يُطلب وحده */
+function prefetch(j){if(!S.me)return;j=j||{};if(!j.mine||!S.mine)loadMine();if(!j.tnews)loadTnews();if(S.me.role==="admin"){if(!j.teachers||!S.teachers)loadTeachers();if(!j.news||!NW.list)loadNews()}}
+/* المستخدم يكتب في هذا النموذج الآن: لا نعيد رسمه من تحت أصابعه */
+function typing(id){var a=document.activeElement;return!!(a&&a.closest&&a.closest("#"+id)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))}
 function waiting(t){return'<div class="skeleton"></div><p style="color:var(--muted);font-size:.88rem;margin:8px 0 0">'+t+'</p>'}
 function failed(t,a){return'<div class="msg" role="status" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>'+esc(t)+'</span><button class="btn sm" type="button" data-a="'+a+'">إعادة المحاولة</button></div>'}
 
@@ -307,10 +327,37 @@ function vtag(v){v=String(v||"").trim();if(!v)return"";if(D.ytId(v))return'<span
 function status(t){var s=$("status");if(s)s.textContent=t}
 
 /* ---------- actions ---------- */
+/* الدخول: طلب واحد يجلب معه دروس الأستاذ ورسائل الإدارة (وللمدير: الإعلانات والأساتذة) — خادم الإصدار 7 */
+function meOf(j){return{name:j.name,role:j.role,subjects:j.subjects,v:j.v||2}}
+function gens(){return{mine:G.mine,team:G.team,news:G.news}}
+function applyBoot(j,g){
+ if(j.mine&&g.mine===G.mine){S.mine=j.mine;S.viewSrc=null;S.mineErr=null;S._loading=false}
+ if(j.tnews)TN.list=j.tnews;
+ if(S.me.role==="admin"){
+  if(j.teachers&&g.team===G.team){S.teachers=j.teachers;S.tErr=null;S._tload=false}
+  if(j.news&&g.news===G.news){NW.list=j.news;NW.err=null;NW.loading=false}
+  if("storage" in j)S.storage=j.storage||null;if(j.visits)S.visits=j.visits;if(j.pushn)S.pushCounts=j.pushn}}
 function login(code,keep){if(!code){msg("اكتب الرمز أولًا.");render();return}
- S.busy=true;S.msg=null;render();
- D.call({action:"login",code:code}).then(function(j){S.code=code;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};if(typeof j.push==="string")D.pushKey(j.push);remember(code,keep);S.busy=false;S.form=null;S.restored=false;S.tab="new";S.msg=null;render();prefetch()},
+ S.busy=true;S.msg=null;render();var g=gens();
+ D.call({action:"login",code:code,boot:true}).then(function(j){S.code=code;S.me=meOf(j);if(typeof j.push==="string")D.pushKey(j.push);remember(code,keep);S.busy=false;S.form=null;S.restored=false;S.tab="new";S.msg=null;S.net="";
+  applyBoot(j,g);render();prefetch(j);cacheSave();if(j.v>=7)D.pushSync()},
   function(e){S.busy=false;S.code=code;if(e.code==="AUTH")forget();msg(D.errText(e));render()})}
+/* فتح الصفحة برمز محفوظ: النسخة المحفوظة تظهر فورًا (إن وُجدت)، والخادم يُسأل في الخلفية.
+   لا نعيد رسم ما يكتبه الأستاذ: نحدّث القوائم فقط، إلا إذا تغيّر اسمه أو دوره أو إصدار الخادم */
+function resume(){var code=S.code,g=gens();S.booting=true;
+ D.call({action:"login",code:code,boot:true}).then(function(j){S.booting=false;if(S.code!==code)return;
+  var was=S.me,me=meOf(j);if(typeof j.push==="string")D.pushKey(j.push);S.busy=false;S.me=me;applyBoot(j,g);netNote("");
+  if(!was||was.name!==me.name||was.role!==me.role||was.subjects!==me.subjects||was.v!==me.v){if($("lf"))readForm();render()}else redraw();
+  prefetch(j);cacheSave();if(j.v>=7)D.pushSync()},
+  function(e){S.booting=false;if(S.code!==code)return;S.busy=false;
+   if(e.code==="AUTH"){cacheDrop(code);forget();if(S.me)logout();msg(D.errText(e));render();return}
+   if(S.me)netNote("تعذّر الاتصال بالخادم الآن. المعروض آخر نسخة محفوظة في هاتفك، وسيُحدَّث عند فتح الصفحة مرة أخرى.");
+   else{msg(D.errText(e));render()}})}
+function redraw(){if(!$("pane")){render();return}
+ if(S.tab==="mine"){if(!typing("pane"))renderMine()}else if(S.tab==="new")refreshUnits();else if(S.tab==="news"){if(!typing("nf"))renderNewsAdmin()}else if(S.tab==="team"){if(!typing("tf"))renderTeam()}
+ drawTnews()}
+function netNote(t){S.net=t;var el=$("netn");if(!t){if(el)el.parentNode.removeChild(el);return}
+ if(el){el.textContent=t;return}var w=app.querySelector(".who");if(!w)return;el=document.createElement("div");el.className="msg";el.id="netn";el.setAttribute("role","status");el.textContent=t;w.parentNode.insertBefore(el,w.nextSibling)}
 
 /* النشر: كل محاولة تحمل رقمًا (rid) فلا يُسجَّل الدرس مرتين إذا انقطع الاتصال وأُعيدت المحاولة.
    عند الزحام أو انقطاع قصير: 3 محاولات تلقائية بفواصل متزايدة. الشاشة تبقى مضاءة أثناء الرفع. */
@@ -469,12 +516,12 @@ function copyText(t,btn){var done=function(){var o=btn.textContent;btn.textConte
  if(navigator.clipboard)navigator.clipboard.writeText(t).then(done,function(){fallback()});else fallback();
  function fallback(){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");done()}catch(e){}document.body.removeChild(a)}}
 
-function logout(){saveDraft();TN={list:null,loading:false};TP={busy:false,out:"",err:""};S.pushCounts=null;fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.gcTotal=undefined;S.viewSrc=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
+function logout(){saveDraft();cacheDrop(S.code);S.net="";S.booting=false;TN={list:null,loading:false};TP={busy:false,out:"",err:""};S.pushCounts=null;fresh("mine");fresh("team");fresh("news");NW={list:null,edit:null,confirm:null,busy:false};TL={busy:false,out:""};S.mineErr=S.tErr=null;S._loading=S._tload=false;forget();S.tab="new";S.msg=null;S.confirm=null;S.me=null;S.code="";S.form=null;S.restored=false;S.mine=null;S.teachers=null;S.storage=null;S.visits=null;S.gcTotal=undefined;S.viewSrc=null;S.mineSort="new";S.newTeacher=null;S.done=null;S.mineQ="";S.mineN=60;render()}
 
 app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if(!b)return;var a=b.dataset.a;
  if(a==="tab"){if(S.tab==="new"&&$("lf"))saveDraft();S.tab=b.dataset.k;S.msg=null;S.confirm=null;if(S.tab==="news"){NW.edit=null;NW.confirm=null}render();
   /* القائمة المحمّلة تظهر فورًا، وتُحدَّث في الخلفية */
-  if(S.tab==="mine"&&S.mine)loadMine();if(S.tab==="news"&&NW.list)loadNews()}
+  if(S.tab==="mine"&&S.mine)loadMine();if(S.tab==="news"&&NW.list)loadNews();if(S.tab==="team"&&S.teachers)loadTeachers()}
  else if(a==="mineRetry"){S.mineErr=null;renderMine()}
  else if(a==="teamRetry"){S.tErr=null;renderTeam()}
  else if(a==="newsRetry"){NW.err=null;renderNewsAdmin()}
@@ -491,7 +538,8 @@ app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if
  else if(a==="cancelPub"){if(PUB){PUB.cancel=true;if(PUB.ctl)PUB.ctl.abort();status("جاري الإلغاء…")}}
  else if(a==="discard"){ls(dkey(),null);S.restored=false;S.form=blankForm();render()}
  else if(a==="refresh"||a==="backup")toolRun(a);
- else if(a==="pOn"){TP.busy=true;TP.err="";TP.out="";drawTpush();D.pushOn(S.code).then(function(){TP.busy=false;TP.out="تم ✓ ستصلك رسائل الإدارة على هذا الهاتف.";drawTpush()},function(e){TP.busy=false;TP.err=D.errText(e);drawTpush()})}
+ else if(a==="pOn"){if(TP.busy||!D.armed($("tpush")))return;TP.busy=true;TP.err="";TP.out="";drawTpush();D.pushOn(S.code).then(function(){TP.busy=false;TP.out="تم ✓ ستصلك رسائل الإدارة على هذا الهاتف.";drawTpush()},function(e){TP.busy=false;TP.err=D.errText(e);drawTpush()})}
+ else if(a==="pHide"){if(!D.armed($("tpush")))return;try{localStorage.setItem("doros-tpush-hide",String(Date.now()))}catch(e){}drawTpush()}
  else if(a==="pOff"){TP.busy=true;D.pushOff().then(function(){TP.busy=false;TP.out="";TP.err="";drawTpush()})}
  else if(a==="pTest"){TP.busy=true;TP.out="";TP.err="";drawTpush();D.call({action:"pushTest",code:S.code,s:D.pushInfo().id}).then(function(){TP.busy=false;TP.out="أُرسل إشعار تجريبي. يصل خلال ثوانٍ (إن لم يصل: تأكد أن الإشعارات مسموحة في إعدادات الهاتف).";drawTpush()},function(e){TP.busy=false;TP.err=D.errText(e);drawTpush()})}
  else if(a==="nEdit"){NW.edit=(NW.list||[]).filter(function(n){return n.id===b.dataset.id})[0]||null;renderNewsAdmin();window.scrollTo({top:0})}
@@ -510,7 +558,7 @@ app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if
   S.done=null;S.restored=false;S.tab="new";S.msg=null;render();window.scrollTo({top:0})}
  else if(a==="del"){S.confirm=b.dataset.id;drawMine()}
  else if(a==="delNo"){S.confirm=null;S.tab==="team"?renderTeam():drawMine()}
- else if(a==="delYes"){b.disabled=true;D.call({action:"delete",code:S.code,id:b.dataset.id}).then(function(){D.invalidate();S.confirm=null;fresh("mine");S.mine=S.mine.filter(function(x){return x.id!==b.dataset.id});msg("تم حذف الدرس.",true);render()},function(e){msg(D.errText(e));render()})}
+ else if(a==="delYes"){b.disabled=true;D.call({action:"delete",code:S.code,id:b.dataset.id}).then(function(){D.invalidate();S.confirm=null;fresh("mine");S.mine=S.mine.filter(function(x){return x.id!==b.dataset.id});msg("تم حذف الدرس.",true);render();cacheSoon()},function(e){msg(D.errText(e));render()})}
  else if(a==="copy"){var t=S.teachers.filter(function(x){return x.id===b.dataset.id})[0];if(t)copyText(invite(t),b)}
  else if(a==="stop"){S.confirm="t"+b.dataset.id;renderTeam()}
  else if(a==="reset"){S.confirm="r"+b.dataset.id;renderTeam()}
@@ -520,13 +568,17 @@ app.addEventListener("click",function(ev){var b=ev.target.closest("[data-a]");if
 /* حفظ المسودة أثناء الكتابة، وعند مغادرة التطبيق (الهاتف يغلق الصفحات في الخلفية دون إنذار) */
 app.addEventListener("input",function(e){if(e.target.closest&&e.target.closest("#lf"))draftSoon()});
 app.addEventListener("change",function(e){if(e.target.closest&&e.target.closest("#lf")&&e.target.type!=="file")draftSoon()});
-document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")saveDraft()});
-window.addEventListener("pagehide",saveDraft);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"){saveDraft();if(cacheT)cacheSave()}});
+window.addEventListener("pagehide",function(){saveDraft();if(cacheT)cacheSave()});
 window.addEventListener("beforeunload",function(e){if(S.busy||(S.form&&S.form.files.some(function(x){return x.state!=="done"}))){e.preventDefault();e.returnValue="";return""}});
 
 S.code=store();
-if(S.code&&D.apiOn()){S.busy=true;app.innerHTML='<div class="skeleton" style="max-width:420px;margin:24px auto"></div>';
- D.call({action:"login",code:S.code}).then(function(j){S.busy=false;S.me={name:j.name,role:j.role,subjects:j.subjects,v:j.v||2};if(typeof j.push==="string")D.pushKey(j.push);render();prefetch()},function(e){S.busy=false;if(e.code==="AUTH")forget();render()})}
+if(S.code&&D.apiOn()){var c0=cacheRead(S.code);
+ if(c0){S.me=c0.me;S.mine=c0.mine||null;TN.list=c0.tnews||null;
+  if(c0.me.role==="admin"){NW.list=c0.news||null;S.storage=c0.storage||null;S.visits=c0.visits||null;S.pushCounts=c0.pushCounts||null}
+  render()}
+ else{S.busy=true;app.innerHTML='<div class="skeleton" style="max-width:420px;margin:24px auto"></div>'}
+ resume()}
 else render();
 })();
 </script>

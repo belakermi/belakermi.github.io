@@ -10,7 +10,7 @@
 var V = "doros-v3";
 /* عند تغيير رقم ?v= في الصفحات، غيّره هنا أيضًا (وإلا يُحمَّل الملف الجديد من الشبكة عند أول طلب فقط) */
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
-  "style.css?v=9", "common.js?v=9", "imgpdf.js?v=4", "config.js", "lessons.csv",
+  "style.css?v=9", "common.js?v=10", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
   "icons/app-192.png", "icons/badge-96.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 /* صورة المتوسطة في الصفحة الرئيسية: الهاتف يختار نسخة واحدة حسب شاشته، فنحفظ التي حمّلها فقط (بدون أي تحميل إضافي)
@@ -169,8 +169,9 @@ self.addEventListener("fetch", function (e) {
   if (url.hostname === "cdnjs.cloudflare.com") { e.respondWith(cacheFirst(req)); return; }
 });
 
-/* ---- الإشعارات (خادم الإصدار 6) ----
-   الإشارة تصل فارغة؛ نسأل الخادم عن نص الرسالة (برقم اشتراك هذا الهاتف، المحفوظ عند التفعيل) ثم نعرضها.
+/* ---- الإشعارات ----
+   خادم الإصدار 7: النص يصل مشفّرًا داخل الإشارة (المتصفح يفك تشفيره)، فنعرضه فورًا بدون أي طلب.
+   الإصدار 6 (أو هاتف اشترك قبل 7): الإشارة فارغة؛ نسأل الخادم عن النص (برقم اشتراك هذا الهاتف) ثم نعرضه.
    تأخير عشوائي صغير قبل السؤال حتى لا تسأل كل الهواتف في اللحظة نفسها، ومحاولتان إضافيتان عند الزحام */
 function pushInfo() {
   return caches.open("dpush").then(function (c) { return c.match("/__push"); }).then(function (r) { return r ? r.json() : null; }).catch(function () { return null; });
@@ -178,19 +179,23 @@ function pushInfo() {
 function pushMessage(inf) {
   if (!inf || !inf.api) return Promise.resolve(null);
   function ask(n) {
-    return timeout(n ? 1500 + Math.random() * 2000 : Math.random() * 2000).then(function () {
+    return timeout(!n ? Math.random() * 600 : n === 1 ? 1500 + Math.random() * 3000 : 4000 + Math.random() * 6000).then(function () {
       return fetch(inf.api + "?api=pushmsg&s=" + encodeURIComponent(inf.s || "") + "&t=" + Date.now());
     }).then(function (r) { return r.json(); }).then(function (j) { return j && j.ok ? j.msg : null; })
       .catch(function () { return n < 2 ? ask(n + 1) : null; });
   }
   return ask(0);
 }
+function pushData(e) {
+  try { var m = e.data ? e.data.json() : null; return m && typeof m.title === "string" && m.title ? m : null; } catch (x) { return null; }
+}
 self.addEventListener("push", function (e) {
-  e.waitUntil(pushInfo().then(pushMessage).then(function (m) {
+  var inside = pushData(e);
+  e.waitUntil((inside ? Promise.resolve(inside) : pushInfo().then(pushMessage)).then(function (m) {
     m = m || {};
     return self.registration.showNotification(m.title || "إعلان جديد من المؤسسة", {
       body: m.text || "افتح الموقع لقراءته.", icon: "icons/app-192.png", badge: "icons/badge-96.png",
-      tag: "doros-msg", renotify: true, lang: "ar", dir: "rtl", data: { url: m.url || "./" }
+      tag: "doros-msg", renotify: true, lang: "ar", dir: "rtl", data: { url: /^(\.\/|teacher\.html)$/.test(m.url || "") ? m.url : "./" }
     });
   }));
 });
@@ -213,7 +218,8 @@ self.addEventListener("pushsubscriptionchange", function (e) {
     var s = String(inf.key).replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
     var raw = atob(s), key = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
     return self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }).then(function (sub) {
-      return fetch(inf.api, { method: "POST", body: JSON.stringify({ action: "pushSub", endpoint: sub.endpoint, id: inf.s }) });
+      var k = null; try { k = sub.toJSON().keys; } catch (x) {}
+      return fetch(inf.api, { method: "POST", body: JSON.stringify({ action: "pushSub", endpoint: sub.endpoint, id: inf.s, keys: k }) });
     });
   }).catch(function () {}));
 });
