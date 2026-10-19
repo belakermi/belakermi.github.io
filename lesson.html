@@ -13,7 +13,7 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <script src="config.js"></script>
 <script src="common.js?v=8"></script>
 <style>
@@ -132,7 +132,7 @@ function draw(l,stale){
    box.innerHTML='<div class="qrprint"><b class="qt">'+esc(l.title)+'</b><span class="qs">'+esc((y?y.name:"")+" · "+(s?s.n:""))+'</span><div id="qr" class="qr"></div><span class="qs">'+esc(SITE.name)+'</span></div>'
     +'<p class="hint" style="margin:0;color:var(--muted);font-size:.88rem">اعرضه على السبورة أو اطبعه في ورقة التمارين: التلميذ يوجّه كاميرا الهاتف نحوه فيفتح الدرس مباشرة.</p>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" data-a="print">🖨️ اطبع</button><button class="btn quiet sm" type="button" data-a="qrclose">إغلاق</button></div>';
-   qrLib().then(function(){new QRCode($("qr"),{text:url,width:240,height:240,colorDark:"#1F2227",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M})},
+   qrLib().then(function(){new QRCode($("qr"),{text:url,width:240,height:240,colorDark:"#1F2227",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});var qi=$("qr").querySelector("img");if(qi)qi.alt="رمز QR يفتح هذا الدرس"},
     function(){$("qr").textContent="تعذّر تحميل رمز QR. تحقق من الإنترنت ثم أعد المحاولة."});
    box.scrollIntoView({behavior:"smooth",block:"nearest"});return}
   if(ev.target.closest('[data-a="qrclose"]')){$("qrbox").hidden=true;var q2=document.querySelector('[data-a="qr"]');if(q2)q2.setAttribute("aria-expanded","false");return}

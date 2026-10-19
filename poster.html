@@ -23,7 +23,7 @@
     border:10px solid var(--brick);box-shadow:0 2px 14px rgba(0,0,0,.12)}
   .top{background:var(--brick);color:var(--gold);text-align:center;padding:5% 6% 4%;display:flex;flex-direction:column;gap:1%}
   .top h1{font-family:"Reem Kufi",sans-serif;font-size:clamp(1.5rem,6vw,2.6rem);margin:0;line-height:1.3}
-  .top .d{font-family:"Reem Kufi",sans-serif;letter-spacing:.1em;direction:ltr}
+  .top .d{font-family:"Reem Kufi",sans-serif;letter-spacing:.1em;direction:ltr;color:#F8E6B8}
   .mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;padding:5% 8%;text-align:center}
   .mid h2{font-family:"Reem Kufi",sans-serif;font-size:clamp(1.3rem,5vw,2.2rem);margin:0}
   #qr{padding:14px;border:4px solid var(--charcoal);background:#fff;width:min(62%,300px);aspect-ratio:1}
@@ -68,7 +68,7 @@
 <script>
   var site=new URL("./",location.href).href;
   document.getElementById("url").textContent=site;
-  if(window.QRCode){new QRCode(document.getElementById("qr"),{text:site,width:512,height:512,colorDark:"#1F2227",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M})}
+  if(window.QRCode){new QRCode(document.getElementById("qr"),{text:site,width:512,height:512,colorDark:"#1F2227",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});var qi=document.querySelector("#qr img");if(qi)qi.alt="رمز QR يفتح موقع دروس المؤسسة"}
   else{document.getElementById("qr").textContent="تعذّر إنشاء الرمز. تحقّق من الاتصال بالإنترنت."}
 </script>
 </body>

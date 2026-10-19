@@ -19,7 +19,7 @@
 </script>
 <link rel="preload" href="fonts/plex-ar-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <style>
   body{min-height:100vh}
   .vbar{position:sticky;top:0;z-index:5;background:var(--charcoal);color:#fff;padding-top:env(safe-area-inset-top,0px);box-shadow:0 2px 10px rgba(0,0,0,.18)}
@@ -80,9 +80,11 @@ $("title").textContent=title;document.title=title+" · متوسطة الشهيد
 if(/^y[1-4]-[a-z]+$/.test(back))$("back").href="./#"+back;
 var fname=title.replace(/[\\\/:*?"<>|]+/g," ").trim()+".pdf";
 
-function fail(msg){$("stage").hidden=true;$("dock").hidden=true;$("info").textContent="";
+function fail(msg,missing,retry){$("stage").hidden=true;$("dock").hidden=true;$("info").textContent="";
  var s=$("state");s.hidden=false;s.innerHTML="";var p=document.createElement("p");p.textContent=msg;s.appendChild(p);
- if(valid){var a=document.createElement("a");a.className="dl";a.href=file;a.setAttribute("download",fname);a.textContent="تحميل الملف ⤓";s.appendChild(a)}}
+ if(retry){var r=document.createElement("button");r.type="button";r.className="btn sm";r.textContent="إعادة المحاولة";r.onclick=function(){location.reload()};s.appendChild(r)}
+ if(missing){$("get").hidden=true;var h=document.createElement("a");h.className="dl";h.href=$("back").getAttribute("href");h.textContent="→ العودة إلى الدروس";s.appendChild(h)}
+ else if(valid){var a=document.createElement("a");a.className="dl";a.href=file;a.setAttribute("download",fname);a.textContent="تحميل الملف ⤓";s.appendChild(a)}}
 
 if(!valid){$("get").hidden=true;fail("هذا الرابط لا يشير إلى درس موجود. ارجع إلى صفحة الدروس واختر الدرس من جديد.");return}
 $("get").href=file;$("get").setAttribute("download",fname);
@@ -106,13 +108,18 @@ function openDoc(port){pdfjsLib.GlobalWorkerOptions.workerPort=port||null;
   var lab=document.createElement("span");lab.className="n";lab.textContent=n;el.appendChild(lab);box.appendChild(el);
   slots.push({n:n,page:page,el:el,w:0,busy:false,visible:false,near:true});io.observe(el);far.observe(el)})})(i);
  return chain.then(function(){$("dock").hidden=false;$("pnum").textContent="1 / "+d.numPages;updateZoom()});
-}).catch(function(){fail("تعذّر عرض الدرس على هذا الجهاز. حمّل الملف وافتحه في هاتفك.")});
+}).catch(function(err){var n=err&&err.name;
+ if(n==="MissingPDFException")fail("هذا الملف غير موجود على الموقع (ربما نُقل أو حُذف). ارجع إلى صفحة الدروس، وأخبر أستاذك إن تكرر ذلك.",true);
+ else if(!navigator.onLine||n==="UnexpectedResponseException"||/fetch|network/i.test(String(err&&err.message)))fail("تعذّر تحميل الملف: أنت بدون إنترنت أو الاتصال ضعيف. اتصل ثم أعد المحاولة.",false,true);
+ else fail("تعذّر عرض الدرس على هذا الجهاز. حمّل الملف وافتحه في هاتفك.")});
 
-var io=new IntersectionObserver(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.visible=e.isIntersecting;if(s.visible)draw(s)})},{rootMargin:"600px 0px"});
-var cur=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&doc)$("pnum").textContent=e.target.dataset.n+" / "+doc.numPages})},{rootMargin:"-45% 0px -45% 0px"});
+/* متصفح قديم بدون IntersectionObserver: كل الصفحات تُعتبر قريبة فتُرسم مرة واحدة (بدون تفريغ ولا رقم صفحة متحرك) */
+var IO=window.IntersectionObserver||function(cb){this.observe=function(el){setTimeout(function(){cb([{target:el,isIntersecting:true}])},0)}};
+var io=new IO(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.visible=e.isIntersecting;if(s.visible)draw(s)})},{rootMargin:"600px 0px"});
+var cur=!window.IntersectionObserver?{observe:function(){}}:new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&doc)$("pnum").textContent=e.target.dataset.n+" / "+doc.numPages})},{rootMargin:"-45% 0px -45% 0px"});
 /* الصفحات البعيدة عن الشاشة (أكثر من شاشة ونصف) تُفرَّغ من الذاكرة، وتُرسم من جديد عند الرجوع إليها:
    ملف طويل أو تكبير على هاتف قديم لا يملأ ذاكرته */
-var far=new IntersectionObserver(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.near=e.isIntersecting;if(!s.near)evict(s)})},{rootMargin:"150% 0px"});
+var far=new IO(function(es){es.forEach(function(e){var s=slot(e.target);if(!s)return;s.near=e.isIntersecting;if(!s.near)evict(s)})},{rootMargin:"150% 0px"});
 function evict(s){if(s.busy||!s.w)return;var c=s.el.querySelector("canvas");if(c){c.width=0;c.height=0;s.el.removeChild(c)}
  s.el.classList.add("wait");s.w=0;try{s.page.cleanup()}catch(e){}}
 function slot(el){for(var i=0;i<slots.length;i++)if(slots[i].el===el)return slots[i];return null}

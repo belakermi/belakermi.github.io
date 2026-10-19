@@ -31,6 +31,9 @@
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+/* كلمة أو رابط طويل جدًا بلا مسافات يُقسَم بدل أن يجعل الصفحة تنزلق جانبيًا على الهواتف الصغيرة */
+body{overflow-wrap:break-word}
+.meta span,.where,.unit-h,.mrow h4,.head h2{overflow-wrap:anywhere}
 img{max-width:100%;display:block}
 button,input{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
@@ -43,7 +46,7 @@ h1,h2,h3{font-family:var(--display);line-height:1.25;margin:0;text-wrap:balance}
 .facade .inner{padding:22px 12px 0;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-width:0}
 .facade .eyebrow{font-size:.8rem;letter-spacing:.06em;opacity:.85}
 .facade h1{font-size:clamp(1.55rem,6.4vw,2.6rem);font-weight:700;color:var(--gold);text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.facade .dates{font-family:var(--display);color:var(--gold);font-size:1rem;letter-spacing:.08em;font-variant-numeric:tabular-nums;direction:ltr}
+.facade .dates{font-family:var(--display);color:#F8E6B8;font-size:1rem;letter-spacing:.08em;font-variant-numeric:tabular-nums;direction:ltr}
 .facade .glass{margin-top:14px;width:100%;max-width:760px;aspect-ratio:16/8;border:3px solid var(--charcoal);border-bottom:0;
   background:var(--charcoal);overflow:hidden;position:relative}
 .facade .glass picture{display:block;width:100%;height:100%}
@@ -90,6 +93,8 @@ main{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:22px 40px;d
 .lesson .row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .lesson h4{margin:0;font-size:1.05rem;font-weight:600;min-width:0;overflow-wrap:anywhere}
 .tags{display:flex;gap:6px;flex:none}
+/* شاشة صغيرة جدًا (280 بكسل): الشارات تنزل سطرًا بدل أن تخرج من البطاقة */
+.lesson .tags{flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end}
 .pill{border-radius:999px;padding:1px 10px;font-size:.76rem;font-weight:600;border:1px solid currentColor;white-space:nowrap}
 .pill.video{color:var(--y3)}.pill.file{color:var(--y4)}.pill.link{color:var(--y1)}
 .pill.new{background:var(--gold);color:#3A2A00;border-color:var(--gold)}
