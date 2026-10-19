@@ -220,7 +220,7 @@ var D = (function () {
   function lessons(force) {
     if (!apiOn()) return Promise.resolve([]);
     var f = !force && fresh();
-    if (f) { lastNews = Array.isArray(f.news) ? f.news : []; return Promise.resolve(f.lessons); }
+    if (f) { lastNews = Array.isArray(f.news) ? f.news : []; if (f.v >= 7) pushSync(); return Promise.resolve(f.lessons); }
     return getJson("api=lessons", 3).then(function (j) {
       if (!j.ok) { var e = new Error(j.error || "SERVER"); e.code = j.error || "SERVER"; throw e; }
       lastNews = Array.isArray(j.news) ? j.news : null;
@@ -310,8 +310,11 @@ var D = (function () {
   function pushSync() {
     var o = pushGet();
     if (!o.id || o.kk || !pushSupported() || Notification.permission !== "granted") return;
-    try { if (sessionStorage.getItem("doros-psync")) return; sessionStorage.setItem("doros-psync", "1"); } catch (e) { return; }
-    navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.pushManager.getSubscription() : null; }).then(function (sub) {
+    try { if (sessionStorage.getItem("doros-psync")) return; } catch (e) { return; }
+    navigator.serviceWorker.ready.then(function (r) {   /* ينتظر عامل الخدمة إن لم يكن جاهزًا بعد في هذه الزيارة */
+      try { if (sessionStorage.getItem("doros-psync")) return null; sessionStorage.setItem("doros-psync", "1"); } catch (e) { return null; }
+      return r.pushManager.getSubscription();
+    }).then(function (sub) {
       var k = sub && subKeys(sub);
       if (!k) return;
       return call({ action: "pushSub", endpoint: sub.endpoint, id: o.id, keys: k }).then(function (j) {

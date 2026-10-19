@@ -10,7 +10,7 @@
 var V = "doros-v3";
 /* عند تغيير رقم ?v= في الصفحات، غيّره هنا أيضًا (وإلا يُحمَّل الملف الجديد من الشبكة عند أول طلب فقط) */
 var SHELL = ["./", "index.html", "lesson.html", "bem.html", "viewer.html", "teacher.html", "guide.html",
-  "style.css?v=9", "common.js?v=10", "imgpdf.js?v=4", "config.js", "lessons.csv",
+  "style.css?v=9", "common.js?v=11", "imgpdf.js?v=4", "config.js", "lessons.csv",
   "fonts/plex-ar-400.woff2", "fonts/plex-ar-600.woff2", "fonts/plex-la-400.woff2", "fonts/plex-la-600.woff2", "fonts/kufi-ar-700.woff2", "fonts/kufi-la-700.woff2",
   "icons/app-192.png", "icons/badge-96.png", "icons/favicon.svg", "icons/favicon-32.png", "manifest.webmanifest"];
 /* صورة المتوسطة في الصفحة الرئيسية: الهاتف يختار نسخة واحدة حسب شاشته، فنحفظ التي حمّلها فقط (بدون أي تحميل إضافي)
