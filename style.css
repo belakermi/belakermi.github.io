@@ -12,7 +12,7 @@
   --ground:#F3F4F5; --surface:#FFFFFF; --ink:#1F2227; --muted:#5E646D; --line:#E0E2E5;
   --brick:#B23F1C; --brick-deep:#8E2F12; --gold:#E2BC63; --gold-ink:#8A6418; --charcoal:#24272C;
   --y1:#1D7A6C; --y2:#5B4DB3; --y3:#B0461F; --y4:#2B62B0;
-  --ok:#1F7F55; --danger:#B8322A; --brick-ink:#A53A18;
+  --ok:#1F7F55; --danger:#B8322A; --brick-ink:#A53A18; --go:#17694F; --go-deep:#0F5540; --go-ink:#17694F;
   --display:"Reem Kufi","IBM Plex Sans Arabic",Tahoma,sans-serif;
   --body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
   --lattice:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='20'%3E%3Cpath d='M3 16 L11 3 L19 16 Z' fill='%2324272C'/%3E%3C/svg%3E");
@@ -20,11 +20,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --ground:#14161A; --surface:#1D2025; --ink:#ECEDEF; --muted:#A2A8B1; --line:#30343A;
   --brick:#A63A19; --brick-deep:#7A2A10; --gold:#E7C46F; --gold-ink:#E2BC63; --charcoal:#0E0F11;
-  --y1:#45C1AE; --y2:#A596F2; --y3:#F08A5F; --y4:#77A6F2; --ok:#4CC38A; --danger:#FF7A6E; --brick-ink:#F39A73; color-scheme:dark}}
+  --y1:#45C1AE; --y2:#A596F2; --y3:#F08A5F; --y4:#77A6F2; --ok:#4CC38A; --danger:#FF7A6E; --brick-ink:#F39A73; --go:#186C51; --go-deep:#135A43; --go-ink:#5CCFA6; color-scheme:dark}}
 :root[data-theme="dark"]{
   --ground:#14161A; --surface:#1D2025; --ink:#ECEDEF; --muted:#A2A8B1; --line:#30343A;
   --brick:#A63A19; --brick-deep:#7A2A10; --gold:#E7C46F; --gold-ink:#E2BC63; --charcoal:#0E0F11;
-  --y1:#45C1AE; --y2:#A596F2; --y3:#F08A5F; --y4:#77A6F2; --ok:#4CC38A; --danger:#FF7A6E; --brick-ink:#F39A73; color-scheme:dark}
+  --y1:#45C1AE; --y2:#A596F2; --y3:#F08A5F; --y4:#77A6F2; --ok:#4CC38A; --danger:#FF7A6E; --brick-ink:#F39A73; --go:#186C51; --go-deep:#135A43; --go-ink:#5CCFA6; color-scheme:dark}
 
 /* «hidden» يغلب أي display في التنسيق (كانت بطاقة التثبيت وشريط BEM تظهران دائمًا) */
 [hidden]{display:none!important}
@@ -103,9 +103,9 @@ main{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:22px 40px;d
 .pill.new{background:var(--gold);color:#3A2A00;border-color:var(--gold)}
 .meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
 .note{margin:0;font-size:.95rem;overflow-wrap:anywhere}
-.open{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:var(--brick);color:#fff;font-weight:600;
+.open{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:var(--go);color:#fff;font-weight:600;
   text-decoration:none;border-radius:10px;padding:8px 16px}
-.open:hover{background:var(--brick-deep)}
+.open:hover{background:var(--go-deep)}
 .where{font-size:.8rem;color:var(--muted)}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--muted);text-align:center}
 .msg{border-radius:10px;padding:10px 12px;font-size:.92rem;background:color-mix(in srgb,var(--danger) 12%,var(--surface));color:var(--danger)}
@@ -126,14 +126,14 @@ footer a{color:#fff}
 .minis{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .mini{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;color:inherit;text-decoration:none}
 .mini+.mini{border-top:1px solid var(--line)}
-.mini:hover{background:color-mix(in srgb,var(--brick) 6%,var(--surface))}
+.mini:hover{background:color-mix(in srgb,var(--go) 6%,var(--surface))}
 .mini .mt{display:flex;flex-direction:column;min-width:0}
 .mini b{font-weight:600;overflow-wrap:anywhere}
 .mini small{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
-.dl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--brick-ink);color:var(--brick-ink);font-weight:600;text-decoration:none;border-radius:10px;padding:7px 16px}
-.dl:hover{background:color-mix(in srgb,var(--brick-ink) 10%,transparent)}
-.pill.pdf{color:var(--brick-ink)}
+.dl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--go-ink);color:var(--go-ink);font-weight:600;text-decoration:none;border-radius:10px;padding:7px 16px}
+.dl:hover{background:color-mix(in srgb,var(--go-ink) 10%,transparent)}
+.pill.pdf{color:var(--muted)}
 
 /* ---------- shared top bar (lesson, teacher pages) ---------- */
 .topbar{position:sticky;top:0;z-index:5;background:var(--charcoal);color:#fff;padding-top:env(safe-area-inset-top,0px);box-shadow:0 2px 10px rgba(0,0,0,.18)}
@@ -144,10 +144,10 @@ footer a{color:#fff}
 .topbar small{color:#A2A8B1;font-size:.8rem}
 .topbar .strip{height:6px;background-color:var(--brick);background-image:var(--lattice);background-size:7px 6px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer;background:var(--brick);color:#fff;text-decoration:none}
-.btn:hover{background:var(--brick-deep)}
-.btn.ghost{background:transparent;color:var(--brick-ink);border:1px solid var(--brick-ink)}
-.btn.ghost:hover{background:color-mix(in srgb,var(--brick-ink) 10%,transparent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer;background:var(--go);color:#fff;text-decoration:none}
+.btn:hover{background:var(--go-deep)}
+.btn.ghost{background:transparent;color:var(--go-ink);border:1px solid var(--go-ink)}
+.btn.ghost:hover{background:color-mix(in srgb,var(--go-ink) 10%,transparent)}
 .btn.quiet{background:transparent;color:var(--muted);border:1px solid var(--line)}
 .btn.danger{background:var(--danger);color:#fff}
 .btn.sm{padding:6px 12px;font-size:.85rem}
@@ -164,10 +164,10 @@ footer a{color:#fff}
 .seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .seg label{position:relative;border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;cursor:pointer;font-size:.9rem;background:var(--surface)}
 .seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
-.seg input:checked+span{color:var(--brick-ink);font-weight:700}
+.seg input:checked+span{color:var(--go-ink);font-weight:700}
 /* «.on» يضعه الموقع بنفسه: للمتصفحات القديمة التي لا تعرف :has (قاعدة منفصلة، وإلا تُهمل كلها) */
-.seg label.on{border-color:var(--brick-ink);background:rgba(178,63,28,.08);background:color-mix(in srgb,var(--brick-ink) 8%,var(--surface))}
-.seg label:has(input:checked){border-color:var(--brick-ink);background:color-mix(in srgb,var(--brick-ink) 8%,var(--surface))}
+.seg label.on{border-color:var(--go-ink);background:rgba(23,105,79,.08);background:color-mix(in srgb,var(--go-ink) 8%,var(--surface))}
+.seg label:has(input:checked){border-color:var(--go-ink);background:color-mix(in srgb,var(--go-ink) 8%,var(--surface))}
 .seg label:has(input:focus-visible){outline:3px solid var(--gold);outline-offset:2px}
 .rows{display:flex;flex-direction:column;gap:8px}
 .frow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)}
@@ -177,7 +177,7 @@ footer a{color:#fff}
 .frow .x{background:none;border:0;color:var(--muted);font-size:1.2rem;cursor:pointer;width:32px;height:32px;border-radius:8px}
 .frow .x:hover{background:var(--line)}
 .bar{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}
-.bar i{display:block;height:100%;background:var(--brick-ink);width:0}
+.bar i{display:block;height:100%;background:var(--go-ink);width:0}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate;letter-spacing:.06em}
 .note.excerpt{color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
 .bar.ind i{width:35%;animation:none}
@@ -208,9 +208,9 @@ footer a{color:#fff}
 .more-subj{margin-top:12px}
 .more-subj summary{cursor:pointer;color:var(--muted);font-weight:600;font-size:.92rem;padding-block:6px}
 .more-subj .subjects{margin-top:10px;opacity:.85}
-.pill.t-ex{color:var(--y1)}.pill.t-devoir{color:var(--y2)}.pill.t-exam{color:var(--danger)}.pill.t-corr{color:var(--ok)}
+.pill.t-ex{color:var(--y1)}.pill.t-devoir{color:var(--y2)}.pill.t-exam{color:var(--y4)}.pill.t-corr{color:var(--ok)}
 .pill.t-bem,.pill.t-bemc{background:var(--charcoal);color:var(--gold);border-color:var(--charcoal)}
-.install{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px dashed var(--brick-ink);border-radius:12px;padding:12px 14px}
+.install{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px dashed var(--go-ink);border-radius:12px;padding:12px 14px}
 .install .it{display:flex;flex-direction:column;min-width:0;flex:1}
 .install .iico{flex:none;width:52px;height:52px;border-radius:12px}
 .install .it b{font-weight:600}
@@ -243,3 +243,52 @@ details.archive .list{display:flex;flex-direction:column;gap:10px}
 details.more-saved summary{cursor:pointer;color:var(--muted);font-size:.9rem;padding:8px 2px}
 .bemcd{margin:4px 0 0;font-size:.95rem;color:var(--ink)}
 .bemcd b{font-family:var(--display);color:var(--brick-ink);font-size:1.15rem}
+
+/* ============ «أين وصلت؟» والوصول السريع ============ */
+/* التلميذ العائد (أو من فتح رابط مادة): رأس نحيف، والدروس تظهر في الشاشة الأولى. الواجهة الكاملة لأول زيارة فقط */
+.ret .facade .glass,.ret .facade .dates{display:none}
+.ret .facade .inner{padding:10px 12px 12px;gap:0}
+.ret .facade h1{font-size:clamp(1.15rem,5vw,1.7rem)}
+.ret .facade .eyebrow{font-size:.72rem}
+.ret main{padding-block:14px 40px;gap:16px}
+.ret .label{display:none}
+.year b i{font-style:normal}
+.year.none{opacity:.6}
+@media (max-width:560px){
+  .ret .years{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .ret .year{padding:4px 2px;min-height:46px;align-items:center;justify-content:center;text-align:center;border-width:1.5px;border-radius:10px}
+  .ret .year b{font-size:1rem}.ret .year b i,.ret .year span{display:none}
+}
+/* بطاقة «أكمل من حيث توقفت» */
+.cont{background:color-mix(in srgb,var(--go-ink) 8%,var(--surface));border:1.5px solid var(--go-ink);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.cont[hidden]{display:none}
+.cont .ch{color:var(--go-ink);font-weight:600;font-size:.82rem}
+.cont .ct{font-size:1.08rem;font-weight:600;overflow-wrap:anywhere;unicode-bidi:plaintext}
+.cont .cgo{display:block;text-align:center;background:var(--go);color:#fff;font-weight:700;text-decoration:none;border-radius:10px;padding:12px;font-size:1.02rem}
+.cont .cgo:hover{background:var(--go-deep)}
+.cont .cl{align-self:flex-start;color:var(--muted);font-size:.85rem;text-decoration:underline;text-underline-offset:3px;padding-block:4px;overflow-wrap:anywhere}
+.prog{height:8px;background:color-mix(in srgb,var(--go-ink) 18%,var(--surface));border-radius:99px;overflow:hidden}
+.prog i{display:block;height:100%;min-width:8px;background:var(--go-ink);border-radius:99px}
+.progt{display:flex;justify-content:space-between;gap:10px;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.progw{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.tick{color:var(--go-ink);font-weight:700}
+/* صف الدرس: مضغوط، وكله يفتح الدرس */
+.list{gap:8px}
+.lesson{position:relative;flex-direction:row;align-items:center;gap:8px;padding:10px 12px}
+.lesson .go{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;color:inherit;text-decoration:none}
+.lesson .go::after{content:"";position:absolute;inset:0;border-radius:inherit}
+.lesson .go:focus-visible{outline:none}.lesson .go:focus-visible::after{outline:3px solid var(--go-ink);outline-offset:-3px}
+.lesson:hover{border-color:var(--go-ink)}
+.lesson h4{font-size:1rem;line-height:1.5}
+.lesson .meta{font-size:.8rem;gap:3px 7px;align-items:center}
+.lesson .meta .pill{font-size:.7rem;padding:0 8px}
+.lesson .note.excerpt{font-size:.85rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.lesson .side{position:relative;z-index:1;flex:none;display:flex;align-items:center;gap:6px}
+.lesson .side .dl,.lesson .side .star{width:40px;height:40px;padding:0;border-radius:50%;justify-content:center;font-size:1.1rem;border-color:var(--line);color:var(--muted)}
+.lesson .side .dl:hover{border-color:var(--go-ink);color:var(--go-ink)}
+.lesson .side .star[aria-pressed="true"]{color:#B8860B;border-color:var(--gold)}
+/* سهم «إلى الأمام» (الموقع من اليمين إلى اليسار: الأمام = اليسار) */
+.chev{width:9px;height:9px;border-left:2px solid var(--go-ink);border-bottom:2px solid var(--go-ink);transform:rotate(45deg);margin-inline:2px 6px;flex:none}
+.lesson.seen{background:color-mix(in srgb,var(--go-ink) 5%,var(--surface))}
+.term,.unit{gap:8px}
+@media (max-width:340px){.chev{display:none}.lesson .side .dl,.lesson .side .star{width:36px;height:36px}}

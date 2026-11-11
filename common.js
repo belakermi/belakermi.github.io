@@ -126,6 +126,20 @@ var D = (function () {
     seen[id] = t; lsSet(VS, seen);
     var q = lsGet(VQ, []); if (q.indexOf(id) < 0) q.push(id); lsSet(VQ, q.slice(-100));
   }
+  /* ---- «أين وصلت؟»: الدروس التي فتحها التلميذ تُعلَّم في هاتفه فقط (لا تُرسل لأي خادم) ----
+     منها: علامة ✓ على الدرس، شريط التقدّم في المادة، وبطاقة «أكمل من حيث توقفت» في الرئيسية. */
+  var OPK = "doros-open-v1", LASTK = "doros-last-v1";
+  function opened(x) {
+    if (!x || typeof x.k !== "string" || !x.k) return;
+    var o = openedMap(), ks;
+    o[x.k] = Date.now();
+    ks = Object.keys(o);
+    if (ks.length > 800) ks.sort(function (a, b) { return o[a] - o[b]; }).slice(0, ks.length - 600).forEach(function (k) { delete o[k]; });
+    lsSet(OPK, o);
+    if (x.t && x.h) lsSet(LASTK, { k: x.k, t: String(x.t).slice(0, 160), h: String(x.h).slice(0, 600), y: +x.y || 0, s: String(x.s || "").slice(0, 12), at: Date.now() });
+  }
+  function openedMap() { var o = lsGet(OPK, {}); return o && typeof o === "object" && !Array.isArray(o) ? o : {}; }
+  function lastOpened() { var l = lsGet(LASTK, null); return l && typeof l.k === "string" && /^(viewer|lesson)\.html\?/.test(l.h || "") ? l : null; }
   function markVisit() {
     if (teacherDevice()) return;
     var v = lsGet(VD, {}); if (v.day === today()) return;
@@ -377,7 +391,7 @@ var D = (function () {
     typeName:typeName, typeOf:typeOf, unitKey:unitKey, digits:digits, fold:fold, today:today, activeNews:activeNews, waLink:waLink, share:share, siteUrl:siteUrl,
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
-    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, track:track, saved:saved, isSaved:isSaved, toggleSaved:toggleSaved, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
+    inApp:inApp, inAppNote:inAppNote, yearStart:yearStart, markView:markView, markVisit:markVisit, opened:opened, openedMap:openedMap, lastOpened:lastOpened, track:track, saved:saved, isSaved:isSaved, toggleSaved:toggleSaved, statsOn:statsOn, statsUrl:statsUrl, statsCount:statsCount,
     canInstall:canInstall, onInstallable:onInstallable, install:install, standalone:standalone, isIOS:isIOS,
     pushKey:pushKey, pushStatus:pushStatus, pushOn:pushOn, pushOff:pushOff, pushInfo:pushInfo, pushSupported:pushSupported,
     pushSync:pushSync, pushInvite:pushInvite, arm:arm, armed:armed };

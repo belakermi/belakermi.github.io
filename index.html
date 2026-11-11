@@ -18,9 +18,10 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=9">
+<script>try{if(localStorage.getItem("doros-csv-v1")!=null||/^#y[1-4]-[a-z]+$/.test(location.hash))document.documentElement.className="ret"}catch(e){}</script>
+<link rel="stylesheet" href="style.css?v=10">
 <script src="config.js"></script>
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 </head>
 <body>
 <header class="facade">
@@ -40,6 +41,7 @@
 <main>
   <div id="error"></div>
   <section id="news" hidden aria-label="إعلانات المؤسسة"></section>
+  <section id="cont" class="cont" hidden aria-label="أكمل من حيث توقفت"></section>
   <section style="display:flex;flex-direction:column;gap:10px">
     <span class="label">اختر سنتك</span>
     <nav class="years" id="years" aria-label="السنوات"></nav>
@@ -156,6 +158,29 @@ function pills(l){var o="";if(isNew(l.date))o+='<span class="pill new">جديد<
 /* «احفظ للمراجعة» */
 var byKey={};
 function lkey(l){return l.src==="api"?"a:"+l.apiId:"c:"+l.url}
+/* «أين وصلت؟»: الدروس التي فتحها التلميذ (في هاتفه فقط) */
+var OPEN=D.openedMap(),apiFresh=false;
+function isOpen(l){return!!OPEN[lkey(l)]}
+function seenIn(L){return L.filter(isOpen).length}
+function progress(n,t){var pc=t?Math.round(n*100/t):0;return'<div class="prog" role="img" aria-label="شاهدت '+n+' من '+t+'"><i style="width:'+pc+'%"></i></div><div class="progt"><span>شاهدت '+n+' من '+t+'</span><span>'+pc+'%</span></div>'}
+function linkAttrs(l){return'href="'+esc(openHref(l))+'"'+(inSite(l)?'':' target="_blank" rel="noopener" data-ok="'+esc(lkey(l))+'"')}
+/* بطاقة «أكمل من حيث توقفت»: الدرس التالي غير المفتوح في آخر مادة فتحها، بضغطة واحدة */
+function renderCont(){var el=$("cont"),last=D.lastOpened(),i;
+ if(!last||!loaded||ui.subj||ui.q){el.hidden=true;el.innerHTML="";return}
+ var cur=null;for(i=0;i<lessons.length;i++)if(lkey(lessons[i])===last.k){cur=lessons[i];break}
+ if(!cur){
+  if(last.k.charAt(0)==="c"||apiFresh){el.hidden=true;el.innerHTML="";return}   /* حُذف الدرس */
+  el.hidden=false;el.innerHTML='<small class="ch">▶ آخر ما فتحت</small><b class="ct">'+esc(last.t)+'</b><a class="cgo" href="'+esc(last.h)+'">أعد فتح الدرس</a>';return}
+ var s=subj(cur.subject),S=lessons.filter(function(l){return l.year===cur.year&&l.subject===cur.subject}).sort(byCourse),idx=S.indexOf(cur),n=seenIn(S),next=null;
+ for(i=idx+1;i<S.length;i++)if(!isOpen(S[i])){next=S[i];break}
+ if(!next)for(i=0;i<idx;i++)if(!isOpen(S[i])){next=S[i];break}
+ var where=esc(s.n)+' · '+esc(YEARS[cur.year-1].name),hs='./#y'+cur.year+'-'+cur.subject;
+ el.hidden=false;
+ el.innerHTML=next
+  ?'<small class="ch">▶ أكمل من حيث توقفت · '+where+'</small><b class="ct">'+esc(next.title)+'</b>'+progress(n,S.length)
+   +'<a class="cgo" '+linkAttrs(next)+'>افتح الدرس التالي</a><a class="cl" href="'+esc(last.h)+'">↺ أعد فتح: '+esc(last.t)+'</a>'
+  :'<small class="ch">✓ أتممت دروس '+where+'</small><b class="ct">'+esc(last.t)+'</b>'+progress(n,S.length)
+   +'<a class="cgo" href="'+esc(last.h)+'">راجع آخر درس</a><a class="cl" href="'+hs+'">كل دروس '+esc(s.n)+'</a>'}
 function star(l){var k=lkey(l),on=D.isSaved(k);byKey[k]=l;
  return'<button class="star" type="button" data-act="save" data-k="'+esc(k)+'" aria-pressed="'+on+'" aria-label="'+(on?"أزل من المحفوظات":"احفظ للمراجعة")+'" title="'+(on?"محفوظ للمراجعة":"احفظ للمراجعة")+'">'+(on?"★":"☆")+'</button>'}
 function renderSaved(){var el=$("saved"),S=D.saved();
@@ -165,16 +190,15 @@ function renderSaved(){var el=$("saved"),S=D.saved();
   +(S.length>5?'<details class="more-saved"><summary>عرض الكل ('+S.length+')</summary><div class="minis">'+S.slice(5).map(row).join("")+'</div></details>':'')}
 function setStars(k,on){Array.prototype.forEach.call(document.querySelectorAll('.star[data-k]'),function(b){if(b.getAttribute("data-k")!==k)return;b.setAttribute("aria-pressed",String(on));b.textContent=on?"★":"☆";b.setAttribute("aria-label",on?"أزل من المحفوظات":"احفظ للمراجعة");b.title=on?"محفوظ للمراجعة":"احفظ للمراجعة"})}
 
-function card(l,showWhere){var meta=[],s=subj(l.subject);
- if(l.unit)meta.push(esc(l.unit));if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(fmt(l.date));
- var o='<article class="lesson">'+(showWhere?'<span class="where">'+esc(YEARS[l.year-1].name)+' · '+esc(s.n)+'</span>':"")
-  +'<div class="row"><h4>'+esc(l.title)+'</h4><span class="tags">'+pills(l)+star(l)+'</span></div>'
-  +(meta.length?'<div class="meta">'+meta.map(function(x){return"<span>"+x+"</span>"}).join("<span>·</span>")+'</div>':"")
-  +(l.text?'<p class="note excerpt">'+esc(l.text)+'</p>':"")+(l.note?'<p class="note">'+esc(l.note)+'</p>':"");
- if(l.src==="api")o+='<a class="open" href="'+esc(openHref(l))+'">افتح الدرس</a>';
- else if(isLocal(l.url))o+='<div class="acts"><a class="open" href="'+esc(viewerHref(l))+'">اعرض الدرس</a><a class="dl" href="'+esc(l.url)+'" download>تحميل ⤓</a></div>';
- else o+='<a class="open" href="'+esc(l.url)+'" target="_blank" rel="noopener">افتح الدرس ↗</a>';
- return o+'</article>'}
+function card(l,showWhere){var meta=[],s=subj(l.subject),seen=isOpen(l);
+ if(l.unit)meta.push(esc(l.unit));if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(fmt(l.date));if(l.note)meta.push(esc(l.note));
+ /* الصف كله يفتح الدرس (خيار واحد واضح)، والتحميل والحفظ أيقونتان صغيرتان بجانبه */
+ return'<article class="lesson'+(seen?' seen':'')+'"><a class="go" '+linkAttrs(l)+'>'
+  +(showWhere?'<span class="where">'+esc(YEARS[l.year-1].name)+' · '+esc(s.n)+'</span>':"")
+  +'<h4>'+(seen?'<span class="tick" title="شاهدته">✓</span> ':'')+esc(l.title)+'</h4>'
+  +'<span class="meta">'+pills(l)+meta.map(function(x){return"<span>"+x+"</span>"}).join('<span aria-hidden="true">·</span>')+'</span>'
+  +(l.text?'<span class="note excerpt">'+esc(l.text)+'</span>':"")
+  +'</a><span class="side">'+(isLocal(l.url)?'<a class="dl" href="'+esc(l.url)+'" download aria-label="تحميل الملف" title="تحميل الملف">⤓</a>':'')+star(l)+'<span class="chev" aria-hidden="true"></span></span></article>'}
 
 /* ---- إعلانات المؤسسة ---- */
 function renderNews(){var N=D.activeNews(D.news()),el=$("news");
@@ -182,7 +206,7 @@ function renderNews(){var N=D.activeNews(D.news()),el=$("news");
  el.hidden=false;el.innerHTML='<div class="news">'+N.map(function(n){return'<article class="nitem'+(n.pinned?' pin':'')+'"><div class="nh"><b>'+(n.pinned?'<span aria-hidden="true">📌 </span>':'')+esc(n.title)+'</b><small>'+fmt(n.date)+'</small></div>'+(n.text?'<p>'+esc(n.text)+'</p>':'')+'</article>'}).join("")+'</div>'}
 
 function renderYears(){var o="";
- YEARS.forEach(function(y){var c=count(y.n);o+='<button class="year" data-act="year" data-y="'+y.n+'" aria-pressed="'+(ui.year===y.n)+'"><b>'+y.name+'</b><span>'+(loaded?(c?c+" درس":"لا دروس بعد"):"…")+'</span></button>'});
+ YEARS.forEach(function(y){var c=count(y.n);var w=y.name.split(" ");o+='<button class="year'+(loaded&&!c?' none':'')+'" data-act="year" data-y="'+y.n+'" aria-pressed="'+(ui.year===y.n)+'" aria-label="'+esc(y.name)+'"><b>'+esc(w[0])+'<i> '+esc(w.slice(1).join(" "))+'</i></b><span>'+(loaded?(c?c+" درس":"قريبًا"):"…")+'</span></button>'});
  $("years").innerHTML=o;
  var bem=lessons.filter(function(l){return l.type==="bem"||l.type==="bemc"}).length;
  $("bem").hidden=!(ui.year===4||bem>0);$("bemc").textContent=bem?bem+" موضوع وتصحيح":"مواضيع وتصحيحات";}
@@ -190,11 +214,11 @@ function renderYears(){var o="";
 function renderLatest(){var L=lessons.slice().sort(byNewest).slice(0,3),el=$("latest");
  if(!L.length||ui.subj||ui.q){el.hidden=true;return}
  el.hidden=false;el.innerHTML='<div class="sec-h" style="margin-bottom:8px"><h2>آخر الدروس</h2></div><div class="minis">'+L.map(function(l){
-  return'<a class="mini" href="'+esc(openHref(l))+'"'+(inSite(l)?'':' target="_blank" rel="noopener"')+'><span class="mt"><b>'+esc(l.title)+'</b><small>'+esc(YEARS[l.year-1].name)+' · '+esc(subj(l.subject).n)+(l.date?' · '+fmt(l.date):'')+'</small></span><span class="tags">'+miniPill(l)+'</span></a>'}).join("")+'</div>'}
+  return'<a class="mini" '+linkAttrs(l)+'><span class="mt"><b>'+(isOpen(l)?'<span class="tick" title="شاهدته">✓</span> ':'')+esc(l.title)+'</b><small>'+esc(YEARS[l.year-1].name)+' · '+esc(subj(l.subject).n)+(l.date?' · '+fmt(l.date):'')+'</small></span><span class="tags">'+miniPill(l)+'</span></a>'}).join("")+'</div>'}
 function miniPill(l){if(isNew(l.date))return'<span class="pill new">جديد</span>';if(l.type&&l.type!=="lesson")return'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span>';
  if(l.src==="api")return l.videos.length&&!l.files.length?'<span class="pill video">فيديو</span>':l.files.length?'<span class="pill pdf">ملف</span>':'<span class="pill link">شرح</span>';var k=kind(l.url);return'<span class="pill '+k+'">'+KIND[k]+'</span>'}
 
-function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--yc:var(--y'+ui.year+')"><span class="glyph" aria-hidden="true">'+esc(s.g)+'</span><span class="t"><b>'+s.n+'</b><small>'+(c?c+" درس":"لا دروس بعد")+'</small></span></button>'}
+function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--yc:var(--y'+ui.year+')"><span class="glyph" aria-hidden="true">'+esc(s.g)+'</span><span class="t"><b>'+s.n+'</b><small>'+(c?c+" درس"+(function(n){return n?' · ✓ '+n:''})(seenIn(lessons.filter(function(l){return l.year===ui.year&&l.subject===s.k}))):"قريبًا")+'</small></span></button>'}
 
 function renderView(){var o="",yname=YEARS[ui.year-1].name;
  if(!loaded){$("view").innerHTML='<div class="list"><div class="skeleton"></div><div class="skeleton"></div></div>';return}
@@ -207,11 +231,12 @@ function renderView(){var o="",yname=YEARS[ui.year-1].name;
   o='<div class="sec-h" style="margin-bottom:10px"><h2>مواد '+yname+'</h2></div>';
   if(full.length)o+='<div class="subjects">'+full.map(function(s){return subjBtn(s,count(ui.year,s.k))}).join("")+'</div>';
   else o+='<div class="empty">لم تُنشر دروس لهذه السنة بعد. ستظهر هنا فور نشرها.</div>';
-  if(empty.length)o+='<details class="more-subj"'+(full.length?'':' open')+'><summary>مواد أخرى لم تُنشر فيها دروس بعد ('+empty.length+')</summary><div class="subjects">'+empty.map(function(s){return subjBtn(s,0)}).join("")+'</div></details>';
+  if(empty.length)o+='<details class="more-subj"'+(full.length?'':' open')+'><summary>مواد أخرى · قريبًا ('+empty.length+')</summary><div class="subjects">'+empty.map(function(s){return subjBtn(s,0)}).join("")+'</div></details>';
  }else{
   var s=subj(ui.subj),all=lessons.filter(function(l){return l.year===ui.year&&l.subject===ui.subj});
   o='<div class="sec-h" style="margin-bottom:12px"><h2>'+s.n+' · '+yname+'</h2><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="back" data-act="shareSubj" title="أرسل رابط هذه المادة لمجموعة القسم">مشاركة ↗</button><button class="back" data-act="back">→ كل المواد</button></span></div>';
   if(!all.length){o+='<div class="empty">لم يُضِف الأستاذ دروسًا لهذه المادة بعد. عُد لاحقًا.</div>';$("view").innerHTML=o;return}
+  var sn=seenIn(all);if(sn)o+='<div class="progw">'+progress(sn,all.length)+'</div>';
   /* أزرار التصفية حسب النوع */
   var present=D.TYPES.filter(function(t){return all.some(function(l){return l.type===t.k})});
   if(ui.type&&!present.some(function(t){return t.k===ui.type}))ui.type="";
@@ -244,7 +269,7 @@ function terms(list){var o="",termed=list.some(function(l){return l.term>0});
   o+='</section>'});
  return o+'</div>'}
 
-function render(){renderNews();renderYears();renderSaved();renderLatest();renderView();$("q").placeholder="ابحث عن درس في "+YEARS[ui.year-1].name+"…"}
+function render(){renderNews();renderCont();renderYears();renderSaved();renderLatest();renderView();$("q").placeholder="ابحث عن درس في "+YEARS[ui.year-1].name+"…"}
 /* كل اختيار يُضاف إلى سجل التصفح: زر «رجوع» في الهاتف يعود خطوة داخل الموقع بدل الخروج منه */
 function go(){var h="#y"+ui.year+(ui.subj?"-"+ui.subj:"");if(location.hash!==h)history.pushState(null,"",h);render()}
 function fromHash(){var m=(location.hash||"").slice(1).match(/^y([1-4])(?:-([a-z]+))?$/);
@@ -265,7 +290,10 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("[data-ac
  else if(a==="shareSubj"){var s2=subj(ui.subj);D.share("دروس "+(s2?s2.n:"")+" · "+YEARS[ui.year-1].name+" — "+SITE.name,D.siteUrl("./#y"+ui.year+"-"+ui.subj));return}
  go()});
 window.addEventListener("popstate",fromHash);window.addEventListener("hashchange",fromHash);
-$("q").addEventListener("input",function(){ui.q=this.value.trim();if(ui.q)ui.subj=null;renderSaved();renderLatest();renderView()});
+$("q").addEventListener("input",function(){ui.q=this.value.trim();if(ui.q)ui.subj=null;renderCont();renderSaved();renderLatest();renderView()});
+/* درس يفتح في موقع آخر (رابط خارجي): يُعلَّم عند الضغط. والعودة من صفحة الدرس تُحدّث العلامات */
+document.addEventListener("click",function(ev){var a=ev.target.closest("a[data-ok]");if(!a)return;var k=a.getAttribute("data-ok");D.opened({k:k});OPEN=D.openedMap();setTimeout(render,300)});
+window.addEventListener("pageshow",function(ev){if(ev.persisted){OPEN=D.openedMap();render()}});
 
 /* ---- التحميل: الدروس المحلية + دروس الأساتذة (نسخة الهاتف فورًا، ثم الخادم) ---- */
 var saved=D.apiOn()?D.cached():null,base=[],apiL=saved?mapApi(saved.lessons):[];
@@ -288,7 +316,7 @@ function renderPush(){var el=$("pushc"),f=$("pushf");
    btn='<button class="btn sm" type="button" data-act="pushOn"'+(PS.busy?' disabled':'')+'>'+(PS.busy?'جاري التفعيل…':'فعّل')+'</button>'}
   el.innerHTML='<span class="it">'+t+'</span>'+btn+(st!=="on"?'<button class="x" type="button" data-act="pushHide" aria-label="إخفاء" title="إخفاء">×</button>':'');
   el.hidden=false;D.arm(el)})}
-function fetchApi(force){return D.lessons(force).then(function(L){apiL=mapApi(L);merge();render();renderPush();notice(navigator.onLine?"":"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.")},function(){
+function fetchApi(force){return D.lessons(force).then(function(L){apiFresh=true;apiL=mapApi(L);merge();render();renderPush();notice(navigator.onLine?"":"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.")},function(){
  if(!navigator.onLine)notice(saved?"أنت بدون إنترنت. المعروض آخر نسخة محفوظة في هاتفك.":"أنت بدون إنترنت. اتصل ثم أعد المحاولة.",true);
  else if(saved)notice("الخادم مشغول الآن، والمعروض هو آخر نسخة محفوظة في هاتفك.",true);
  else notice("تعذّر تحميل دروس الأساتذة (الخادم مشغول أو الاتصال ضعيف).",true)})}

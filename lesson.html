@@ -13,9 +13,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 <script src="config.js"></script>
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <style>
   .head{display:flex;flex-direction:column;gap:8px}
   .head .where{font-size:.88rem}
@@ -90,7 +90,7 @@ function draw(l,stale){
  if(!l){fail("هذا الدرس غير موجود أو حُذف.");return}
  var s=D.subj(l.subject),y=D.YEARS[l.year-1];
  document.title=l.title+" · "+SITE.name;
- if(!draw.t){draw.t=1;D.track("/lesson/"+l.id,l.title)}
+ if(!draw.t){draw.t=1;D.track("/lesson/"+l.id,l.title);D.opened({k:"a:"+l.id,t:l.title,h:"lesson.html?id="+encodeURIComponent(l.id),y:l.year,s:l.subject})}
  $("crumb").textContent=(y?y.name:"")+" · "+(s?s.n:"");
  $("back").href="./#y"+l.year+"-"+l.subject;
 

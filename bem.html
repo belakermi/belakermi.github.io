@@ -14,9 +14,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 <script src="config.js"></script>
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <style>
   .intro{display:flex;gap:14px;align-items:flex-start}
   .intro .bem-badge{font-size:1.3rem;padding:10px 12px}
@@ -68,10 +68,12 @@ function render(){var v=$("view");
   var L=list.filter(function(l){return(l.unit||"")===k}).sort(function(a,b){return(a.subject>b.subject?1:a.subject<b.subject?-1:0)||(a.type===b.type?0:a.type==="bem"?-1:1)});
   return'<section class="session"><h3>'+esc(k||"دورات أخرى")+'</h3>'+L.map(card).join("")+'</section>'}).join("")+'</div>';
  v.innerHTML=o}
-function card(l){var s=subj(l.subject),meta=[];if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(D.fmt(l.date));
- return'<article class="lesson"><span class="where">'+esc(s?s.n:"")+'</span><div class="row"><h4>'+esc(l.title)+'</h4><span class="tags">'+(D.isNew(l.date)?'<span class="pill new">جديد</span>':'')+'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span></span></div>'
-  +(meta.length?'<div class="meta">'+meta.map(function(x){return"<span>"+x+"</span>"}).join("<span>·</span>")+'</div>':'')
-  +'<a class="open" href="lesson.html?id='+encodeURIComponent(l.id)+'">افتح</a></article>'}
+function card(l){var s=subj(l.subject),meta=[],seen=!!D.openedMap()["a:"+l.id];if(l.teacher)meta.push("الأستاذ(ة): "+esc(l.teacher));if(l.date)meta.push(D.fmt(l.date));
+ /* نفس صف الدرس في الصفحة الرئيسية: الصف كله يفتح الموضوع، وعلامة ✓ على ما فُتح */
+ return'<article class="lesson'+(seen?' seen':'')+'"><a class="go" href="lesson.html?id='+encodeURIComponent(l.id)+'"><span class="where">'+esc(s?s.n:"")+'</span>'
+  +'<h4>'+(seen?'<span class="tick" title="شاهدته">✓</span> ':'')+esc(l.title)+'</h4>'
+  +'<span class="meta">'+(D.isNew(l.date)?'<span class="pill new">جديد</span>':'')+'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span>'+meta.map(function(x){return"<span>"+x+"</span>"}).join('<span aria-hidden="true">·</span>')+'</span>'
+  +'</a><span class="side"><span class="chev" aria-hidden="true"></span></span></article>'}
 function take(L){all=(L||[]).filter(function(l){var t=D.typeOf(l);return t==="bem"||t==="bemc"}).map(function(l){l.type=D.typeOf(l);return l});loaded=true;render()}
 
 $("view").addEventListener("click",function(e){var b=e.target.closest("[data-s]");if(!b)return;pick=b.dataset.s;render()});

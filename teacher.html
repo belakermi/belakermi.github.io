@@ -16,9 +16,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 <script src="config.js"></script>
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <script src="imgpdf.js?v=4"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -43,7 +43,7 @@
   .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   @media (max-width:560px){.grid2{grid-template-columns:minmax(0,1fr)}}
   form.lesson-form{display:flex;flex-direction:column;gap:16px}
-  .addline{align-self:flex-start;background:none;border:1px dashed var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;color:var(--brick-ink);font-weight:600}
+  .addline{align-self:flex-start;background:none;border:1px dashed var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;color:var(--go-ink);font-weight:600}
   .vrow{display:flex;gap:8px;align-items:center}
   .vrow input{flex:1;min-width:0;direction:ltr;text-align:left}
   .vrow .ok{font-size:.78rem;color:var(--ok);white-space:nowrap}
@@ -59,7 +59,7 @@
   .trow .off{opacity:.55}
   .newcode{display:flex;flex-direction:column;gap:10px;border:2px solid var(--gold);border-radius:12px;padding:14px;background:color-mix(in srgb,var(--gold) 10%,var(--surface))}
   .newcode .mono{font-size:1.5rem;font-weight:700}
-  .photos{border:1px dashed var(--brick-ink);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--brick-ink) 4%,var(--surface))}
+  .photos{border:1px dashed var(--go-ink);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--go-ink) 4%,var(--surface))}
   .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
   .thumb{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;aspect-ratio:3/4}
   .thumb img{width:100%;height:100%;object-fit:cover}
