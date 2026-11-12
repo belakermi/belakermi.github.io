@@ -42,7 +42,9 @@ body{overflow-wrap:break-word}
 img{max-width:100%;display:block}
 button,input{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-h1,h2,h3{font-family:var(--display);line-height:1.25;margin:0;text-wrap:balance}
+/* الكوفي للهوية فقط (اسم المدرسة وعنوان الصفحة في الشريط العلوي)؛ كل ما يُقرأ ليُستعمل بخط IBM Plex الواضح */
+h1,h2,h3{font-family:var(--body);font-weight:600;line-height:1.3;margin:0;text-wrap:balance}
+.facade h1,.topbar h1,.gh h1{font-family:var(--display)}
 
 /* ---------- facade hero ---------- */
 .facade{background:var(--brick);color:#fff;display:grid;grid-template-columns:22px minmax(0,1fr) 22px;
@@ -70,7 +72,7 @@ main{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:22px 40px;d
 @media (max-width:560px){.years{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .year{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;cursor:pointer;
   display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:right}
-.year b{font-family:var(--display);font-size:1.2rem;font-weight:700;color:var(--ink)}
+.year b{font-family:var(--body);font-size:1.1rem;font-weight:600;color:var(--ink)}
 .year span{font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .year[aria-pressed="true"]{border-color:var(--ink);background:var(--ink)}
 .year[aria-pressed="true"] b,.year[aria-pressed="true"] span{color:var(--surface)}
@@ -249,7 +251,7 @@ details.archive .list{display:flex;flex-direction:column;gap:10px}
 .mini.sv .x{flex:none;background:none;border:0;color:var(--muted);font-size:1.3rem;width:44px;align-self:stretch;cursor:pointer}
 details.more-saved summary{cursor:pointer;color:var(--muted);font-size:.9rem;padding:8px 2px}
 .bemcd{margin:4px 0 0;font-size:.95rem;color:var(--ink)}
-.bemcd b{font-family:var(--display);color:var(--brick-ink);font-size:1.15rem}
+.bemcd b{color:var(--ink);font-weight:600}
 
 /* ============ «أين وصلت؟» والوصول السريع ============ */
 /* التلميذ العائد (أو من فتح رابط مادة): رأس نحيف، والدروس تظهر في الشاشة الأولى. الواجهة الكاملة لأول زيارة فقط */
@@ -263,7 +265,7 @@ details.more-saved summary{cursor:pointer;color:var(--muted);font-size:.9rem;pad
 .year.none{opacity:.6}
 @media (max-width:560px){
   .ret .years{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-  .ret .year{padding:4px 2px;min-height:46px;align-items:center;justify-content:center;text-align:center;border-width:1.5px;border-radius:10px}
+  .ret .year{padding:6px 2px;min-height:54px;align-items:center;justify-content:center;text-align:center;border-width:1.5px;border-radius:10px}
   .ret .year b{font-size:1rem;line-height:1.15}.ret .year span{display:none}
   /* «السنة» في سطر صغير فوق «الأولى»: الاسم كامل وواضح دون أن يضيق الزر */
   .ret .year b i{display:block;font-family:var(--body);font-size:.875rem;font-weight:600}
