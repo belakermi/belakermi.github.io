@@ -19,9 +19,9 @@
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <script>try{if(localStorage.getItem("doros-csv-v1")!=null||/^#y[1-4]-[a-z]+$/.test(location.hash))document.documentElement.className="ret"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <script src="config.js"></script>
-<script src="common.js?v=13"></script>
+<script src="common.js?v=14"></script>
 </head>
 <body>
 <header class="facade">
@@ -218,13 +218,13 @@ function renderLatest(){var L=lessons.slice().sort(byNewest).slice(0,3),el=$("la
 function miniPill(l){if(isNew(l.date))return'<span class="pill new">جديد</span>';if(l.type&&l.type!=="lesson")return'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span>';
  if(l.src==="api")return l.videos.length&&!l.files.length?'<span class="pill video">فيديو</span>':l.files.length?'<span class="pill pdf">ملف</span>':'<span class="pill link">شرح</span>';var k=kind(l.url);return'<span class="pill '+k+'">'+KIND[k]+'</span>'}
 
-function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--yc:var(--y'+ui.year+')">'+D.glyph(s)+'<span class="t"><b>'+s.n+'</b><small>'+(c?c+" درس"+(function(n){return n?' · ✓ '+n:''})(seenIn(lessons.filter(function(l){return l.year===ui.year&&l.subject===s.k}))):"قريبًا")+'</small></span></button>'}
+function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--sc:'+s.c+'">'+D.glyph(s)+'<span class="t"><b>'+s.n+'</b><small>'+(c?c+" درس"+(function(n){return n?' · <span class="tick">✓ '+n+'</span>':''})(seenIn(lessons.filter(function(l){return l.year===ui.year&&l.subject===s.k}))):"قريبًا")+'</small></span></button>'}
 
 function renderView(){var o="",yname=YEARS[ui.year-1].name;
  if(!loaded){$("view").innerHTML='<div class="list"><div class="skeleton"></div><div class="skeleton"></div></div>';return}
  if(ui.q){var q=norm(ui.q),R=inYear(ui.year).filter(function(l){return norm(l.title+" "+l.note+" "+l.text+" "+l.unit+" "+l.teacher+" "+subj(l.subject).n+" "+D.typeName(l.type)).indexOf(q)>=0}).sort(byNewest);
   o='<div class="sec-h"><h2>نتائج البحث في '+yname+'</h2></div>';
-  o+=R.length?'<div class="list" style="margin-top:10px">'+R.map(function(l){return card(l,true)}).join("")+'</div>':'<div class="empty" style="margin-top:10px">لا يوجد درس بهذا الاسم في '+yname+'.</div>';
+  o+=R.length?'<div class="list" style="margin-top:10px">'+R.map(function(l){return card(l,true)}).join("")+'</div>':'<div class="empty" style="margin-top:10px">لا يوجد درس بهذا الاسم في '+yname+'. جرّب كلمة أقصر، مثل «الكسور».</div>';
  }else if(!ui.subj){
   /* المواد التي فيها دروس أولًا، والباقي مطويّ */
   var full=SUBJ.filter(function(s){return count(ui.year,s.k)}),empty=SUBJ.filter(function(s){return!count(ui.year,s.k)});
