@@ -1,11 +1,26 @@
 /* أدوات مشتركة بين صفحات الموقع */
 var D = (function () {
+  /* لكل مادة لون ثابت ورمز بسيط: التلميذ يجد مادته بنظرة (الصورة تُتذكَّر أسرع من الكلمة).
+     اللغات رمزها حرفها المعروف؛ بقية المواد رسم خطّي هادئ (i = مسارات SVG داخل مربع 24×24). */
   var SUBJ = [
-    {k:"ar",n:"اللغة العربية",g:"ع"},{k:"math",n:"الرياضيات",g:"ر"},{k:"fr",n:"اللغة الفرنسية",g:"Fr"},
-    {k:"en",n:"اللغة الإنجليزية",g:"En"},{k:"sci",n:"العلوم الطبيعية",g:"ط"},{k:"phy",n:"العلوم الفيزيائية",g:"ف"},
-    {k:"hist",n:"التاريخ والجغرافيا",g:"تج"},{k:"isl",n:"التربية الإسلامية",g:"إ"},{k:"civ",n:"التربية المدنية",g:"م"},
-    {k:"amz",n:"اللغة الأمازيغية",g:"ⵣ"},{k:"art",n:"التربية التشكيلية",g:"ت"},{k:"mus",n:"التربية الموسيقية",g:"♪"},
-    {k:"info",n:"المعلوماتية",g:"IT"}];
+    {k:"ar",n:"اللغة العربية",g:"ض",c:"#0F7F7A"},
+    {k:"math",n:"الرياضيات",g:"ر",c:"#2463B8",i:'<path d="M4 20V5l15 15z"/><path d="M8 16.5v-3.2l3.2 3.2z"/>'},
+    {k:"fr",n:"اللغة الفرنسية",g:"Fr",c:"#4B4FC0"},
+    {k:"en",n:"اللغة الإنجليزية",g:"En",c:"#BF3F74"},
+    {k:"sci",n:"العلوم الطبيعية",g:"ط",c:"#3F8A2E",i:'<path d="M5 19c0-8.5 5-13.5 14-14 0 9-5 14-14 14z"/><path d="M5 19l8.5-8.5"/>'},
+    {k:"phy",n:"العلوم الفيزيائية",g:"ف",c:"#C25A1B",i:'<circle cx="12" cy="12" r="1.4"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/>'},
+    {k:"hist",n:"التاريخ والجغرافيا",g:"تج",c:"#8C7A12",i:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>'},
+    {k:"isl",n:"التربية الإسلامية",g:"إ",c:"#17805A",i:'<path d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6z"/>'},
+    {k:"civ",n:"التربية المدنية",g:"م",c:"#50657F",i:'<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7l-2.6 6.2a2.8 2.8 0 0 0 5.2 0zM19 7l-2.6 6.2a2.8 2.8 0 0 0 5.2 0z"/>'},
+    {k:"amz",n:"اللغة الأمازيغية",g:"ⵣ",c:"#B07C0E"},
+    {k:"art",n:"التربية التشكيلية",g:"ت",c:"#A23FA6",i:'<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-.8 1.9-1.8 0-1.3-1-1.7-1-2.7 0-.8.7-1.5 1.6-1.5H16a5 5 0 0 0 5-5c0-3.9-4-7-9-7z"/><circle cx="7.6" cy="11.6" r=".9"/><circle cx="10.2" cy="7.7" r=".9"/><circle cx="14.6" cy="7.6" r=".9"/>'},
+    {k:"mus",n:"التربية الموسيقية",g:"♪",c:"#7648B8",i:'<path d="M9 18V6l10-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>'},
+    {k:"info",n:"المعلوماتية",g:"IT",c:"#0E7FA0",i:'<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/>'}];
+  /* مربع رمز المادة (aria-hidden: اسم المادة مكتوب بجانبه دائمًا) */
+  function glyph(s, cls) {
+    if (!s) return "";
+    return '<span class="glyph' + (cls ? " " + cls : "") + '" style="--sc:' + s.c + '" aria-hidden="true">' + (s.i ? '<svg viewBox="0 0 24 24" focusable="false">' + s.i + "</svg>" : esc(s.g)) + "</span>";
+  }
   var YEARS = [{n:1,name:"الأولى متوسط"},{n:2,name:"الثانية متوسط"},{n:3,name:"الثالثة متوسط"},{n:4,name:"الرابعة متوسط"}];
   var TERMS = ["الفصل الأول","الفصل الثاني","الفصل الثالث"];
   var KINDS = {pdf:"PDF",image:"صورة",word:"Word",slides:"عرض",audio:"صوت",file:"ملف"};
@@ -387,7 +402,7 @@ var D = (function () {
   function standalone() { return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
   function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
 
-  return { SUBJ:SUBJ, YEARS:YEARS, TERMS:TERMS, KINDS:KINDS, TYPES:TYPES, subj:subj, esc:esc, fmt:fmt, isNew:isNew, size:size, errText:errText,
+  return { glyph:glyph, SUBJ:SUBJ, YEARS:YEARS, TERMS:TERMS, KINDS:KINDS, TYPES:TYPES, subj:subj, esc:esc, fmt:fmt, isNew:isNew, size:size, errText:errText,
     typeName:typeName, typeOf:typeOf, unitKey:unitKey, digits:digits, fold:fold, today:today, activeNews:activeNews, waLink:waLink, share:share, siteUrl:siteUrl,
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,

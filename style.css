@@ -79,10 +79,12 @@ main{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:22px 40px;d
   cursor:pointer;text-align:right;min-width:0}
 .subj:hover{border-color:var(--yc)}
 .glyph{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:700;
-  background:color-mix(in srgb,var(--yc) 14%,transparent);color:var(--yc);color:color-mix(in srgb,var(--yc) 78%,#000)}
+  background:color-mix(in srgb,var(--sc,var(--yc)) 14%,transparent);color:var(--sc,var(--yc));color:color-mix(in srgb,var(--sc,var(--yc)) 78%,#000)}
+.glyph svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.glyph.sm{width:30px;height:30px;border-radius:8px;font-size:.85rem}.glyph.sm svg{width:19px;height:19px}
 /* الوضع الليلي: ألوان السنوات فاتحة، فنفتّحها قليلًا بدل تغميقها (وضوح الحرف لضعاف البصر) */
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .glyph{color:var(--yc);color:color-mix(in srgb,var(--yc) 78%,#fff)}}
-:root[data-theme="dark"] .glyph{color:var(--yc);color:color-mix(in srgb,var(--yc) 78%,#fff)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .glyph{color:var(--sc,var(--yc));color:color-mix(in srgb,var(--sc,var(--yc)) 72%,#fff)}}
+:root[data-theme="dark"] .glyph{color:var(--sc,var(--yc));color:color-mix(in srgb,var(--sc,var(--yc)) 72%,#fff)}
 .subj .t{display:flex;flex-direction:column;min-width:0}
 .subj .t b{font-weight:600;line-height:1.3}
 .subj .t small{color:var(--muted);font-size:.875rem;font-variant-numeric:tabular-nums}
@@ -301,3 +303,5 @@ footer a{display:inline-block;padding-block:11px;min-width:44px;text-align:cente
 .cont .cl{padding-block:11px}
 .lesson .side .dl,.lesson .side .star{width:44px;height:44px}
 @media (max-width:340px){.lesson .side .dl,.lesson .side .star{width:40px;height:40px}}
+.sh2{display:flex;align-items:center;gap:10px}
+.cont .ch{display:flex;align-items:center;gap:8px}
