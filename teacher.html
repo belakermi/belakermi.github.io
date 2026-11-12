@@ -16,9 +16,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 <script src="config.js"></script>
-<script src="common.js?v=14"></script>
+<script src="common.js?v=15"></script>
 <script src="imgpdf.js?v=4"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -227,7 +227,7 @@ function renderForm(){
  if(S.restored)o+='<div class="upd" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>📝 استرجعنا '+(f.id?'تعديلك الذي لم يُحفظ':'مسودتك المحفوظة')+'.'+(f.lost?' الملفات التي لم تُرفع ('+f.lost+') لا تُحفظ في المسودة: أعد اختيارها.':'')+'</span><button type="button" class="btn quiet sm" data-a="discard">'+(f.id?'تجاهل التعديل':'ابدأ درسًا جديدًا فارغًا')+'</button></div>';
  if(v3())o+='<div class="field"><label for="type">نوع المحتوى</label><select id="type">'+D.TYPES.map(function(t){return'<option value="'+t.k+'"'+(f.type===t.k?" selected":"")+'>'+t.n+'</option>'}).join("")+'</select></div>';
  var bem=v3()&&isBem(f.type);
- o+='<div class="field"><span class="lab">السنة'+(bem?' <small style="color:var(--muted);font-weight:400">(BEM = الرابعة متوسط)</small>':'')+'</span><div class="seg">'+D.YEARS.map(function(y){var on=bem?y.n===4:+f.year===y.n;return'<label'+(on?' class="on"':'')+'><input type="radio" name="year" value="'+y.n+'"'+(on?" checked":"")+(bem&&y.n!==4?" disabled":"")+'><span>'+y.name.replace(" متوسط","")+'</span></label>'}).join("")+'</div></div>';
+ o+='<div class="field"><span class="lab">السنة'+(bem?' <small style="color:var(--muted);font-weight:400">(BEM = السنة الرابعة متوسط)</small>':'')+'</span><div class="seg">'+D.YEARS.map(function(y){var on=bem?y.n===4:+f.year===y.n;return'<label'+(on?' class="on"':'')+'><input type="radio" name="year" value="'+y.n+'"'+(on?" checked":"")+(bem&&y.n!==4?" disabled":"")+'><span>'+y.o+'</span></label>'}).join("")+'</div></div>';
  o+='<div class="grid2"><div class="field"><label for="subject">المادة</label><select id="subject">'+D.SUBJ.map(function(s){return'<option value="'+s.k+'"'+(f.subject===s.k?" selected":"")+'>'+s.n+'</option>'}).join("")+'</select></div>';
  o+='<div class="field"><label for="term">الفصل</label><select id="term">'+D.TERMS.map(function(t,i){return'<option value="'+(i+1)+'"'+(+f.term===i+1?" selected":"")+'>'+t+'</option>'}).join("")+'<option value="0"'+(+f.term===0?" selected":"")+'>بدون تحديد</option></select></div></div>';
  if(v3())o+='<div class="field"><label for="unit">'+(bem?"الدورة":"المقطع / الوحدة (اختياري)")+'</label><input id="unit" maxlength="60" list="units" value="'+esc(f.unit)+'" placeholder="'+(bem?"مثال: دورة 2019":"مثال: المقطع 2: الأعداد النسبية")+'"><datalist id="units">'+unitsFor(f).map(function(u){return'<option value="'+esc(u)+'">'}).join("")+'</datalist><p class="hint">'+(bem?"تُرتَّب المواضيع حسب الدورة، الأحدث أولًا.":"الدروس تُجمع تحت مقطعها، بترتيب رقم المقطع.")+'</p></div>';
@@ -432,7 +432,7 @@ function viewSummary(){var tot=0,top=null,by={};
  if(top)o+='<div class="vtop">الأكثر مشاهدة: <a href="lesson.html?id='+encodeURIComponent(top.id)+'" dir="auto">'+esc(top.title)+'</a> · 👁 '+top.views+'</div>';
  else o+='<div class="vtop">لا مشاهدات بعد. شارك رابط درسك مع تلاميذك من صفحة الدرس (زر واتساب).</div>';
  if(S.me.role==="admin"){var rows=Object.keys(by).map(function(k){return{t:k,n:by[k].n,c:by[k].c}}).sort(function(a,b){return b.n-a.n||b.c-a.c});
-  if(rows.length>1)o+='<details class="vby"><summary>حسب الأستاذ ('+rows.length+')</summary><table>'+rows.map(function(r){return'<tr><td>'+esc(r.t)+'</td><td>'+r.c+' درس</td><td>👁 '+r.n+'</td></tr>'}).join("")+'</table></details>'}
+  if(rows.length>1)o+='<details class="vby"><summary>حسب الأستاذ ('+rows.length+')</summary><table>'+rows.map(function(r){return'<tr><td>'+esc(r.t)+'</td><td>'+D.count(r.c,D.DARS)+'</td><td>👁 '+r.n+'</td></tr>'}).join("")+'</table></details>'}
  return o+'<small class="hint" style="color:var(--muted);font-size:.8rem">'+(S.viewSrc==="stats"?'تُحسب المشاهدة مرة واحدة لكل هاتف تلميذ، ولا تُحسب هواتف الأساتذة. الأرقام من خدمة الإحصائيات وقد تتأخر حتى 4 ساعات.':'تُحسب المشاهدة مرة واحدة لكل هاتف تلميذ في اليوم، ولا تُحسب هواتف الأساتذة. الأرقام تتحدث كل بضع دقائق.')+'</small></div>'}
 
 /* ---- لوحة الإعلانات (المدير) ---- */

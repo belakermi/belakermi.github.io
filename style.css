@@ -264,7 +264,9 @@ details.more-saved summary{cursor:pointer;color:var(--muted);font-size:.9rem;pad
 @media (max-width:560px){
   .ret .years{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
   .ret .year{padding:4px 2px;min-height:46px;align-items:center;justify-content:center;text-align:center;border-width:1.5px;border-radius:10px}
-  .ret .year b{font-size:1rem}.ret .year b i,.ret .year span{display:none}
+  .ret .year b{font-size:1rem;line-height:1.15}.ret .year span{display:none}
+  /* «السنة» في سطر صغير فوق «الأولى»: الاسم كامل وواضح دون أن يضيق الزر */
+  .ret .year b i{display:block;font-family:var(--body);font-size:.875rem;font-weight:600}
 }
 /* بطاقة «أكمل من حيث توقفت» */
 .cont{background:color-mix(in srgb,var(--go-ink) 8%,var(--surface));border:1.5px solid var(--go-ink);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}

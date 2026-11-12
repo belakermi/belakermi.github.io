@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>دروس متوسطة الشهيد بلعكرمي أعمر</title>
-<meta name="description" content="دروس الأساتذة لتلاميذ متوسطة الشهيد بلعكرمي أعمر، البيض. من الأولى إلى الرابعة متوسط، ومواضيع شهادة التعليم المتوسط.">
+<meta name="description" content="دروس الأساتذة لتلاميذ متوسطة الشهيد بلعكرمي أعمر، البيض. من السنة الأولى إلى السنة الرابعة متوسط، ومواضيع شهادة التعليم المتوسط.">
 <meta property="og:title" content="دروس متوسطة الشهيد بلعكرمي أعمر">
-<meta property="og:description" content="كل دروس الأساتذة في مكان واحد، من الأولى إلى الرابعة متوسط.">
+<meta property="og:description" content="كل دروس الأساتذة في مكان واحد، من السنة الأولى إلى السنة الرابعة متوسط.">
 <meta property="og:image" content="https://aadl.tech/img/og.jpg">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#B23F1C">
@@ -19,9 +19,9 @@
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <script>try{if(localStorage.getItem("doros-csv-v1")!=null||/^#y[1-4]-[a-z]+$/.test(location.hash))document.documentElement.className="ret"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 <script src="config.js"></script>
-<script src="common.js?v=14"></script>
+<script src="common.js?v=15"></script>
 </head>
 <body>
 <header class="facade">
@@ -32,7 +32,7 @@
     <span class="dates" id="dates">1918 - 1961</span>
     <div class="glass">
       <picture><source type="image/webp" srcset="img/school-600.webp 600w, img/school-900.webp 900w" sizes="(max-width: 800px) 100vw, 760px"><img src="img/school-hero.jpg" alt="مدخل متوسطة الشهيد بلعكرمي أعمر" width="900" height="450" fetchpriority="high" decoding="async"></picture>
-      <span>دروس أساتذتنا، من الأولى إلى الرابعة متوسط</span>
+      <span>دروس أساتذتنا، من السنة الأولى إلى السنة الرابعة متوسط</span>
     </div>
   </div>
   <div class="panel" aria-hidden="true"></div>
@@ -80,7 +80,7 @@
   <div class="strip" aria-hidden="true"></div>
   <div class="in">
     <span><b id="fschool">متوسطة الشهيد بلعكرمي أعمر</b> · <span id="fplace">البيض</span></span>
-    <span style="display:flex;gap:16px;flex-wrap:wrap"><a href="bem.html">BEM</a><a href="teacher.html">فضاء الأساتذة</a><a href="poster.html">ملصق QR للأقسام</a></span>
+    <span style="display:flex;gap:16px;flex-wrap:wrap"><a href="bem.html">مواضيع شهادة التعليم المتوسط (BEM)</a><a href="teacher.html">فضاء الأساتذة</a><a href="poster.html">ملصق QR للأقسام</a></span>
     <span id="pushf" hidden>🔔 الإشعارات مفعّلة · <button class="lnk" type="button" data-act="pushOff">إيقاف</button></span>
   </div>
 </footer>
@@ -194,7 +194,7 @@ function renderCont(){var el=$("cont"),last=D.lastOpened(),i;
   if(celebrating===done||lsg(CELK)!==done){
    if(celebrating!==done){celebrating=done;lss(CELK,done)}
    if(lsg(CHK)!==done){var s0=subj(cur.subject);el.hidden=false;el.className="cont done";
-    el.innerHTML=contClose(done)+'<span class="cdone"><span class="cok" aria-hidden="true">✓</span><span><b>أحسنت! أتممت كل دروس '+esc(s0.n)+'</b><small>'+(S.length===1?"درس واحد":S.length===2?"درسان":S.length+' '+(S.length>10?"درسًا":"دروس"))+' · '+esc(YEARS[cur.year-1].name)+'</small></span></span>';return}}
+    el.innerHTML=contClose(done)+'<span class="cdone"><span class="cok" aria-hidden="true">✓</span><span><b>أحسنت! أتممت كل دروس '+esc(s0.n)+'</b><small>'+D.count(S.length,D.DARS)+' · '+esc(YEARS[cur.year-1].name)+'</small></span></span>';return}}
   var p=inProgress();if(!p)return hide();
   S=p.S;L=p.last;next=nextIn(S,L);if(!next)return hide()}
  var st="n:"+lkey(next);if(lsg(CHK)===st)return hide();
@@ -227,19 +227,19 @@ function renderNews(){var N=D.activeNews(D.news()),el=$("news");
  el.hidden=false;el.innerHTML='<div class="news">'+N.map(function(n){return'<article class="nitem'+(n.pinned?' pin':'')+'"><div class="nh"><b>'+(n.pinned?'<span aria-hidden="true">📌 </span>':'')+esc(n.title)+'</b><small>'+fmt(n.date)+'</small></div>'+(n.text?'<p>'+esc(n.text)+'</p>':'')+'</article>'}).join("")+'</div>'}
 
 function renderYears(){var o="";
- YEARS.forEach(function(y){var c=count(y.n);var w=y.name.split(" ");o+='<button class="year'+(loaded&&!c?' none':'')+'" data-act="year" data-y="'+y.n+'" aria-pressed="'+(ui.year===y.n)+'" aria-label="'+esc(y.name)+'"><b>'+esc(w[0])+'<i> '+esc(w.slice(1).join(" "))+'</i></b><span>'+(loaded?(c?c+" درس":"قريبًا"):"…")+'</span></button>'});
+ YEARS.forEach(function(y){var c=count(y.n);o+='<button class="year'+(loaded&&!c?' none':'')+'" data-act="year" data-y="'+y.n+'" aria-pressed="'+(ui.year===y.n)+'" aria-label="'+esc(y.name)+'"><b><i>السنة </i>'+esc(y.o)+'</b><span>'+(loaded?(c?D.count(c,D.DARS):"قريبًا"):"…")+'</span></button>'});
  $("years").innerHTML=o;
  var bem=lessons.filter(function(l){return l.type==="bem"||l.type==="bemc"}).length;
- $("bem").hidden=!(ui.year===4||bem>0);$("bemc").textContent=bem?bem+" موضوع وتصحيح":"مواضيع وتصحيحات";}
+ $("bem").hidden=!(ui.year===4||bem>0);$("bemc").textContent=bem?D.count(bem,["موضوع واحد","موضوعان","مواضيع وتصحيحات","موضوعًا وتصحيحًا","موضوع وتصحيح"]):"مواضيع وتصحيحات";}
 
 function renderLatest(){var L=lessons.slice().sort(byNewest).slice(0,3),el=$("latest");
  if(!L.length||ui.subj||ui.q){el.hidden=true;return}
  el.hidden=false;el.innerHTML='<div class="sec-h" style="margin-bottom:8px"><h2>آخر الدروس</h2></div><div class="minis">'+L.map(function(l){
   return'<a class="mini" '+linkAttrs(l)+'><span class="mt"><b>'+(isOpen(l)?'<span class="tick" title="شاهدته">✓</span> ':'')+esc(l.title)+'</b><small>'+esc(YEARS[l.year-1].name)+' · '+esc(subj(l.subject).n)+(l.date?' · '+fmt(l.date):'')+'</small></span><span class="tags">'+miniPill(l)+'</span></a>'}).join("")+'</div>'}
 function miniPill(l){if(isNew(l.date))return'<span class="pill new">جديد</span>';if(l.type&&l.type!=="lesson")return'<span class="pill t-'+l.type+'">'+esc(D.typeName(l.type))+'</span>';
- if(l.src==="api")return l.videos.length&&!l.files.length?'<span class="pill video">فيديو</span>':l.files.length?'<span class="pill pdf">ملف</span>':'<span class="pill link">شرح</span>';var k=kind(l.url);return'<span class="pill '+k+'">'+KIND[k]+'</span>'}
+ if(l.src==="api")return l.videos.length&&!l.files.length?'<span class="pill video">فيديو</span>':l.files.length?'<span class="pill pdf">'+esc(D.KINDS[l.files[0].kind]||"ملف")+'</span>':'<span class="pill link">شرح</span>';var k=kind(l.url);return'<span class="pill '+k+'">'+KIND[k]+'</span>'}
 
-function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--sc:'+s.c+'">'+D.glyph(s)+'<span class="t"><b>'+s.n+'</b><small>'+(c?c+" درس"+(function(n){return n?' · <span class="tick">✓ '+n+'</span>':''})(seenIn(lessons.filter(function(l){return l.year===ui.year&&l.subject===s.k}))):"قريبًا")+'</small></span></button>'}
+function subjBtn(s,c){return'<button class="subj'+(c?" has":"")+'" data-act="subj" data-k="'+s.k+'" style="--sc:'+s.c+'">'+D.glyph(s)+'<span class="t"><b>'+s.n+'</b><small>'+(c?D.count(c,D.DARS)+(function(n){return n?' · <span class="tick">✓ شاهدت '+n+'</span>':''})(seenIn(lessons.filter(function(l){return l.year===ui.year&&l.subject===s.k}))):"قريبًا")+'</small></span></button>'}
 
 function renderView(){var o="",yname=YEARS[ui.year-1].name;
  if(!loaded){$("view").innerHTML='<div class="list"><div class="skeleton"></div><div class="skeleton"></div></div>';return}
@@ -252,7 +252,7 @@ function renderView(){var o="",yname=YEARS[ui.year-1].name;
   o='<div class="sec-h" style="margin-bottom:10px"><h2>مواد '+yname+'</h2></div>';
   if(full.length)o+='<div class="subjects">'+full.map(function(s){return subjBtn(s,count(ui.year,s.k))}).join("")+'</div>';
   else o+='<div class="empty">لم تُنشر دروس لهذه السنة بعد. ستظهر هنا فور نشرها.</div>';
-  if(empty.length)o+='<details class="more-subj"'+(full.length?'':' open')+'><summary>مواد أخرى · قريبًا ('+empty.length+')</summary><div class="subjects">'+empty.map(function(s){return subjBtn(s,0)}).join("")+'</div></details>';
+  if(empty.length)o+='<details class="more-subj"'+(full.length?'':' open')+'><summary>مواد لم تُنشر دروسها بعد ('+empty.length+')</summary><div class="subjects">'+empty.map(function(s){return subjBtn(s,0)}).join("")+'</div></details>';
  }else{
   var s=subj(ui.subj),all=lessons.filter(function(l){return l.year===ui.year&&l.subject===ui.subj});
   o='<div class="sec-h" style="margin-bottom:12px"><h2 class="sh2">'+D.glyph(s)+'<span>'+s.n+' · '+yname+'</span></h2><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="back" data-act="shareSubj" title="أرسل رابط هذه المادة لمجموعة القسم">مشاركة ↗</button><button class="back" data-act="back">→ كل المواد</button></span></div>';
@@ -290,7 +290,7 @@ function terms(list){var o="",termed=list.some(function(l){return l.term>0});
   o+='</section>'});
  return o+'</div>'}
 
-function render(){renderNews();renderCont();renderYears();renderSaved();renderLatest();renderView();$("q").placeholder="ابحث عن درس في "+YEARS[ui.year-1].name+"…"}
+function render(){renderNews();renderCont();renderYears();renderSaved();renderLatest();renderView();$("q").placeholder="ابحث في دروس السنة "+YEARS[ui.year-1].o+"…"}
 /* كل اختيار يُضاف إلى سجل التصفح: زر «رجوع» في الهاتف يعود خطوة داخل الموقع بدل الخروج منه */
 function go(){var h="#y"+ui.year+(ui.subj?"-"+ui.subj:"");if(location.hash!==h)history.pushState(null,"",h);render()}
 function fromHash(){var m=(location.hash||"").slice(1).match(/^y([1-4])(?:-([a-z]+))?$/);

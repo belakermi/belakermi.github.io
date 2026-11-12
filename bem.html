@@ -14,9 +14,9 @@
 <link rel="preload" href="fonts/kufi-ar-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 <script src="config.js"></script>
-<script src="common.js?v=14"></script>
+<script src="common.js?v=15"></script>
 <style>
   .intro{display:flex;gap:14px;align-items:flex-start}
   .intro .bem-badge{font-size:1.3rem;padding:10px 12px}
@@ -38,7 +38,7 @@
   <section class="card intro">
     <span class="bem-badge" aria-hidden="true">BEM</span>
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
-      <p><b style="color:var(--ink)">مواضيع الدورات السابقة وتصحيحاتها</b>، لتلاميذ الرابعة متوسط، ينشرها أساتذة المؤسسة.</p>
+      <p><b style="color:var(--ink)">مواضيع الدورات السابقة وتصحيحاتها</b>، لتلاميذ السنة الرابعة متوسط، ينشرها أساتذة المؤسسة.</p>
       <ol class="steps-mini"><li>حلّ الموضوع وحدك في الوقت المحدد.</li><li>ثم قارن إجابتك بالتصحيح.</li></ol>
       <p class="bemcd" id="bemcd" hidden></p>
     </div>
@@ -55,7 +55,7 @@ var all=[],pick="",loaded=false;
 function sessionKey(u){var n=D.unitKey(u);return n===9999?0:n}
 function render(){var v=$("view");
  if(!loaded){return}
- if(!all.length){v.innerHTML='<div class="empty">لم تُنشر مواضيع بعد.<br>أساتذة الرابعة متوسط ينشرونها من «فضاء الأساتذة» باختيار النوع «موضوع BEM» أو «تصحيح BEM».</div>';return}
+ if(!all.length){v.innerHTML='<div class="empty">لم تُنشر مواضيع بعد.<br>أساتذة السنة الرابعة متوسط ينشرونها من «فضاء الأساتذة» باختيار النوع «موضوع BEM» أو «تصحيح BEM».</div>';return}
  var subs=D.SUBJ.filter(function(s){return all.some(function(l){return l.subject===s.k})});
  if(pick&&!subs.some(function(s){return s.k===pick}))pick="";
  var o='<div class="chips" role="group" aria-label="المادة"><button class="chip" data-s="" aria-pressed="'+(!pick)+'">كل المواد <small>'+all.length+'</small></button>'

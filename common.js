@@ -21,7 +21,8 @@ var D = (function () {
     if (!s) return "";
     return '<span class="glyph' + (cls ? " " + cls : "") + '" style="--sc:' + s.c + '" aria-hidden="true">' + (s.i ? '<svg viewBox="0 0 24 24" focusable="false">' + s.i + "</svg>" : esc(s.g)) + "</span>";
   }
-  var YEARS = [{n:1,name:"الأولى متوسط"},{n:2,name:"الثانية متوسط"},{n:3,name:"الثالثة متوسط"},{n:4,name:"الرابعة متوسط"}];
+  /* الاسم الكامل دائمًا «السنة الأولى متوسط» حتى لا يكون شيء مبهمًا للتلميذ؛ o = الترتيب وحده لأزرار السنوات */
+  var YEARS = [{n:1,o:"الأولى",name:"السنة الأولى متوسط"},{n:2,o:"الثانية",name:"السنة الثانية متوسط"},{n:3,o:"الثالثة",name:"السنة الثالثة متوسط"},{n:4,o:"الرابعة",name:"السنة الرابعة متوسط"}];
   var TERMS = ["الفصل الأول","الفصل الثاني","الفصل الثالث"];
   var KINDS = {pdf:"PDF",image:"صورة",word:"Word",slides:"عرض",audio:"صوت",file:"ملف"};
   /* نوع المحتوى (خادم الإصدار 3). الدروس القديمة بدون نوع = «درس» */
@@ -76,6 +77,9 @@ var D = (function () {
   }
   function siteUrl(path) { return new URL(path || "./", location.href).href; }
   function subj(k) { for (var i = 0; i < SUBJ.length; i++) if (SUBJ[i].k === k) return SUBJ[i]; return null; }
+  /* العدد مع المعدود بعربية سليمة: w = [واحد، مثنى، جمع (3–10)، تمييز منصوب (11–99)، مفرد (100، 101…)] */
+  var DARS = ["درس واحد","درسان","دروس","درسًا","درس"];
+  function count(n, w) { n = +n || 0; var m = n % 100; return n === 1 ? w[0] : n === 2 ? w[1] : n + " " + (m >= 3 && m <= 10 ? w[2] : m >= 11 ? w[3] : w[4]); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function fmt(d) { var p = String(d || "").split("-"); return p.length === 3 ? (+p[2]) + "/" + (+p[1]) + "/" + p[0] : ""; }
   function isNew(d) { if (!d) return false; var t = Date.parse(d); return t && (Date.now() - t) < 8 * 864e5 && t <= Date.now() + 864e5; }
@@ -402,7 +406,7 @@ var D = (function () {
   function standalone() { return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
   function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
 
-  return { glyph:glyph, SUBJ:SUBJ, YEARS:YEARS, TERMS:TERMS, KINDS:KINDS, TYPES:TYPES, subj:subj, esc:esc, fmt:fmt, isNew:isNew, size:size, errText:errText,
+  return { count:count, DARS:DARS, glyph:glyph, SUBJ:SUBJ, YEARS:YEARS, TERMS:TERMS, KINDS:KINDS, TYPES:TYPES, subj:subj, esc:esc, fmt:fmt, isNew:isNew, size:size, errText:errText,
     typeName:typeName, typeOf:typeOf, unitKey:unitKey, digits:digits, fold:fold, today:today, activeNews:activeNews, waLink:waLink, share:share, siteUrl:siteUrl,
     ytId:ytId, driveId:driveId, filePreview:filePreview, fileDownload:fileDownload, fileImage:fileImage,
     apiOn:apiOn, call:call, upload:upload, mime:mime, lessons:lessons, lesson:lesson, cached:cached, news:news, invalidate:invalidate,
