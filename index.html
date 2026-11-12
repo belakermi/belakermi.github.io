@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <script>try{if(localStorage.getItem("doros-csv-v1")!=null||/^#y[1-4]-[a-z]+$/.test(location.hash))document.documentElement.className="ret"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <script src="config.js"></script>
 <script src="common.js?v=14"></script>
 </head>
@@ -164,23 +164,44 @@ function isOpen(l){return!!OPEN[lkey(l)]}
 function seenIn(L){return L.filter(isOpen).length}
 function progress(n,t){var pc=t?Math.round(n*100/t):0;return'<div class="prog" role="img" aria-label="شاهدت '+n+' من '+t+'"><i style="width:'+pc+'%"></i></div><div class="progt"><span>شاهدت '+n+' من '+t+'</span><span>'+pc+'%</span></div>'}
 function linkAttrs(l){return'href="'+esc(openHref(l))+'"'+(inSite(l)?'':' target="_blank" rel="noopener" data-ok="'+esc(lkey(l))+'"')}
-/* بطاقة «أكمل من حيث توقفت»: الدرس التالي غير المفتوح في آخر مادة فتحها، بضغطة واحدة */
+/* بطاقة «أكمل من حيث توقفت» — مدروسة نفسيًا:
+   • ما لم يكتمل يبقى في الذهن ويدفع إلى إكماله: البطاقة تقترح الدرس التالي في مادة لم تكتمل بعد.
+   • عند الإكمال: تهنئة قصيرة مرة واحدة (نهاية التجربة هي ما يُتذكَّر)، ثم تختفي وحدها ولا تعود تلحّ.
+   • للتلميذ القرار: × يخفيها. تعود فقط حين يتغيّر الاقتراح (فتح درسًا آخر، أو نُشر درس جديد). */
+var CHK="doros-cont-hide",CELK="doros-cont-done",celebrating=null;
+function groupOf(l){return lessons.filter(function(x){return x.year===l.year&&x.subject===l.subject}).sort(byCourse)}
+function nextIn(S,from){var i,idx=S.indexOf(from);for(i=idx+1;i<S.length;i++)if(!isOpen(S[i]))return S[i];for(i=0;i<idx;i++)if(!isOpen(S[i]))return S[i];return null}
+function lastIn(S){var b=null,t=-1;S.forEach(function(l){var v=OPEN[lkey(l)];if(v&&v>t){t=v;b=l}});return b}
+/* المادة الجارية: آخر مادة فتح فيها درسًا ولم تكتمل (الأحدث أولًا) */
+function inProgress(){var g={},best=null;
+ lessons.forEach(function(l){var k=l.year+"-"+l.subject;if(!g[k])g[k]=groupOf(l)});
+ Object.keys(g).forEach(function(k){var S=g[k],n=seenIn(S);if(!n||n>=S.length)return;var L=lastIn(S),t=OPEN[lkey(L)];if(!best||t>best.t)best={S:S,last:L,t:t}});
+ return best}
+function lsg(k){try{return localStorage.getItem(k)||""}catch(e){return""}}
+function lss(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function contClose(state){return'<button class="cx" type="button" data-act="contHide" data-s="'+esc(state)+'" aria-label="إخفاء" title="إخفاء">×</button>'}
 function renderCont(){var el=$("cont"),last=D.lastOpened(),i;
- if(!last||!loaded||ui.subj||ui.q){el.hidden=true;el.innerHTML="";return}
+ function hide(){el.hidden=true;el.innerHTML="";el.className="cont"}
+ if(!last||!loaded||ui.subj||ui.q)return hide();
  var cur=null;for(i=0;i<lessons.length;i++)if(lkey(lessons[i])===last.k){cur=lessons[i];break}
  if(!cur){
-  if(last.k.charAt(0)==="c"||apiFresh){el.hidden=true;el.innerHTML="";return}   /* حُذف الدرس */
-  el.hidden=false;el.innerHTML='<small class="ch">▶ آخر ما فتحت</small><b class="ct">'+esc(last.t)+'</b><a class="cgo" href="'+esc(last.h)+'">أعد فتح الدرس</a>';return}
- var s=subj(cur.subject),S=lessons.filter(function(l){return l.year===cur.year&&l.subject===cur.subject}).sort(byCourse),idx=S.indexOf(cur),n=seenIn(S),next=null;
- for(i=idx+1;i<S.length;i++)if(!isOpen(S[i])){next=S[i];break}
- if(!next)for(i=0;i<idx;i++)if(!isOpen(S[i])){next=S[i];break}
- var where=esc(s.n)+' · '+esc(YEARS[cur.year-1].name),hs='./#y'+cur.year+'-'+cur.subject;
- el.hidden=false;
- el.innerHTML=next
-  ?'<small class="ch">'+D.glyph(s,"sm")+'<span>أكمل من حيث توقفت · '+where+'</span></small><b class="ct">'+esc(next.title)+'</b>'+progress(n,S.length)
-   +'<a class="cgo" '+linkAttrs(next)+'>افتح الدرس التالي</a><a class="cl" href="'+esc(last.h)+'">↺ أعد فتح: '+esc(last.t)+'</a>'
-  :'<small class="ch">✓ أتممت دروس '+where+'</small><b class="ct">'+esc(last.t)+'</b>'+progress(n,S.length)
-   +'<a class="cgo" href="'+esc(last.h)+'">راجع آخر درس</a><a class="cl" href="'+hs+'">كل دروس '+esc(s.n)+'</a>'}
+  if(last.k.charAt(0)==="c"||apiFresh)return hide();   /* حُذف الدرس */
+  var st0="o:"+last.k;if(lsg(CHK)===st0)return hide();
+  el.hidden=false;el.className="cont";el.innerHTML=contClose(st0)+'<small class="ch">▶ آخر ما فتحت</small><b class="ct">'+esc(last.t)+'</b><a class="cgo" href="'+esc(last.h)+'">أعد فتح الدرس</a>';return}
+ var S=groupOf(cur),next=nextIn(S,cur),L=cur;
+ if(!next){   /* المادة الأخيرة اكتملت: نهنّئ مرة واحدة، ثم ننتقل إلى مادة أخرى لم تكتمل إن وُجدت */
+  var done="d:"+cur.year+"-"+cur.subject+":"+S.length;
+  if(celebrating===done||lsg(CELK)!==done){
+   if(celebrating!==done){celebrating=done;lss(CELK,done)}
+   if(lsg(CHK)!==done){var s0=subj(cur.subject);el.hidden=false;el.className="cont done";
+    el.innerHTML=contClose(done)+'<span class="cdone"><span class="cok" aria-hidden="true">✓</span><span><b>أحسنت! أتممت كل دروس '+esc(s0.n)+'</b><small>'+(S.length===1?"درس واحد":S.length===2?"درسان":S.length+' '+(S.length>10?"درسًا":"دروس"))+' · '+esc(YEARS[cur.year-1].name)+'</small></span></span>';return}}
+  var p=inProgress();if(!p)return hide();
+  S=p.S;L=p.last;next=nextIn(S,L);if(!next)return hide()}
+ var st="n:"+lkey(next);if(lsg(CHK)===st)return hide();
+ var s=subj(L.subject),n=seenIn(S),where=esc(s.n)+' · '+esc(YEARS[L.year-1].name);
+ el.hidden=false;el.className="cont";
+ el.innerHTML=contClose(st)+'<small class="ch">'+D.glyph(s,"sm")+'<span>أكمل من حيث توقفت · '+where+'</span></small><b class="ct">'+esc(next.title)+'</b>'+progress(n,S.length)
+  +'<a class="cgo" '+linkAttrs(next)+'>افتح الدرس التالي</a><a class="cl" '+linkAttrs(L)+'>↺ أعد فتح: '+esc(L.title)+'</a>'}
 function star(l){var k=lkey(l),on=D.isSaved(k);byKey[k]=l;
  return'<button class="star" type="button" data-act="save" data-k="'+esc(k)+'" aria-pressed="'+on+'" aria-label="'+(on?"أزل من المحفوظات":"احفظ للمراجعة")+'" title="'+(on?"محفوظ للمراجعة":"احفظ للمراجعة")+'">'+(on?"★":"☆")+'</button>'}
 function renderSaved(){var el=$("saved"),S=D.saved();
@@ -283,6 +304,7 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("[data-ac
   var on=D.toggleSaved({k:k,t:l.title,h:openHref(l),y:l.year,s:l.subject,ty:l.type,ext:!inSite(l)});setStars(k,on);renderSaved();
   if(on&&l.src==="api")D.lesson(l.apiId).catch(function(){});   /* يُحفظ في الهاتف ليفتح بدون إنترنت */
   return}
+ else if(a==="contHide"){lss(CHK,b.getAttribute("data-s")||"");var ce=$("cont");ce.hidden=true;ce.innerHTML="";ce.className="cont";return}
  else if(a==="unsave"){var k2=b.getAttribute("data-k");D.toggleSaved({k:k2});setStars(k2,false);renderSaved();return}
  else if(a==="pushOn"){if(PS.busy||!D.armed($("pushc")))return;try{localStorage.setItem("doros-push-tried","1")}catch(e){}PS.busy=true;PS.err="";renderPush();D.pushOn().then(function(){PS.busy=false;PS.just=true;renderPush()},function(e){PS.busy=false;PS.err=D.errText(e);renderPush()});return}
  else if(a==="pushOff"){b.disabled=true;D.pushOff().then(function(){PS.just=false;PS.err="";renderPush()});return}

@@ -269,6 +269,16 @@ details.more-saved summary{cursor:pointer;color:var(--muted);font-size:.9rem;pad
 /* بطاقة «أكمل من حيث توقفت» */
 .cont{background:color-mix(in srgb,var(--go-ink) 8%,var(--surface));border:1.5px solid var(--go-ink);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .cont[hidden]{display:none}
+.cont{position:relative}
+.cont .ch{padding-inline-end:40px}
+/* زر الإخفاء: صغير في الركن، لكن مساحة لمسه 44 بكسل */
+.cont .cx{position:absolute;top:2px;inset-inline-end:2px;width:44px;height:44px;border:0;background:none;color:var(--muted);font-size:1.5rem;line-height:1;cursor:pointer;border-radius:12px}
+.cont .cx:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 6%,transparent)}
+/* التهنئة: سطر واحد هادئ، بلا حركة ولا ألعاب نارية */
+.cont.done{padding-block:10px}
+.cdone{display:flex;align-items:center;gap:12px;padding-inline-end:36px}
+.cdone .cok{flex:none;width:36px;height:36px;border-radius:50%;background:var(--go);color:#fff;display:grid;place-items:center;font-weight:700;font-size:1.1rem}
+.cdone b{display:block;font-weight:600;color:var(--ink)}.cdone small{color:var(--muted);font-size:.875rem}
 .cont .ch{color:var(--go-ink);font-weight:600;font-size:.875rem}
 .cont .ct{font-size:1.08rem;font-weight:600;overflow-wrap:anywhere;unicode-bidi:plaintext}
 .cont .cgo{display:block;text-align:center;background:var(--go);color:#fff;font-weight:700;text-decoration:none;border-radius:10px;padding:12px;font-size:1.02rem}
